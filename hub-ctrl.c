@@ -79,7 +79,7 @@ hub_port_status (usb_dev_handle *uh, int nport)
 
       ret = usb_control_msg (uh,
 			     USB_ENDPOINT_IN | USB_TYPE_CLASS | USB_RECIP_OTHER,
-			     USB_REQ_GET_STATUS, 
+			     USB_REQ_GET_STATUS,
 			     0, i + 1,
 			     buf, USB_STATUS_SIZE,
 			     CTRL_TIMEOUT);
@@ -158,7 +158,7 @@ usb_find_hubs (int listing, int verbose, int busnum, int devnum, int hub)
 	      struct usb_hub_descriptor *uhd = (struct usb_hub_descriptor *)buf;
 	      if ((len = usb_control_msg (uh, USB_DIR_IN | USB_RT_HUB,
 					  USB_REQ_GET_DESCRIPTOR,
-					  USB_DT_HUB << 8, 0, 
+					  USB_DT_HUB << 8, 0,
 					  buf, sizeof (buf), CTRL_TIMEOUT))
 		  > sizeof (struct usb_hub_descriptor))
 		{
@@ -371,28 +371,25 @@ main (int argc, const char *argv[])
     }
   else
     {
-      if (cmd == COMMAND_SET_POWER)
-	if (value)
-	  {
+      if (cmd == COMMAND_SET_POWER) {
+	if (value) {
 	    request = USB_REQ_SET_FEATURE;
 	    feature = USB_PORT_FEAT_POWER;
 	    index = port;
-	  }
-	else
-	  {
+	  } else {
 	    request = USB_REQ_CLEAR_FEATURE;
 	    feature = USB_PORT_FEAT_POWER;
 	    index = port;
 	  }
-      else
-	{
+      } else {
 	  request = USB_REQ_SET_FEATURE;
 	  feature = USB_PORT_FEAT_INDICATOR;
 	  index = (value << 8) | port;
+	  printf("port %02x value = %02x\n", port, value);
 	}
 
       if (verbose)
-	printf ("Send control message (REQUEST=%d, FEATURE=%d, INDEX=%d)\n",
+	printf ("Send control message (REQUEST=%d, FEATURE=%d, INDEX=%04x)\n",
 		request, feature, index);
 
       if (usb_control_msg (uh, USB_RT_PORT, request, feature, index,
