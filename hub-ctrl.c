@@ -54,7 +54,8 @@ struct hub_info {
 };
 
 static struct hub_info hubs[MAX_HUBS];
-static int number_of_hubs_with_feature;
+/** Number of hubs supporting power switching */
+static int num_hubs;
 
 static void usage(const char *progname)
 {
@@ -89,8 +90,8 @@ static void hub_port_status(usb_dev_handle *uh, int nport)
 			break;
 		}
 
-		printf("   Port %d: %02x%02x.%02x%02x", i + 1, buf[3], buf [2],
-			buf[1], buf [0]);
+		printf("   Port %d: %02x%02x.%02x%02x", i + 1, buf[3], buf[2],
+			buf[1], buf[0]);
 
 		printf("%s%s%s%s%s",
 			(buf[2] & 0x10) ? " C_RESET" : "",
@@ -118,7 +119,7 @@ static int usb_find_hubs(int listing, int verbose, int busnum, int devnum, int h
 	struct usb_bus *busses;
 	struct usb_bus *bus;
 
-	number_of_hubs_with_feature = 0;
+	num_hubs = 0;
 	busses = usb_get_busses();
 	if (busses == NULL) {
 		perror("failed to access USB");
@@ -137,81 +138,78 @@ static int usb_find_hubs(int listing, int verbose, int busnum, int devnum, int h
 
 			if (listing || (verbose && ((atoi(bus->dirname) == busnum &&
 					dev->devnum == devnum) ||
-					hub == number_of_hubs_with_feature))) {
+					hub == num_hubs))) {
 				print = 1;
 			}
 
 			uh = usb_open(dev);
 
-			if (uh != NULL) {
-				char buf[1024];
-				int len;
-				int nport;
-				struct usb_hub_descriptor *uhd = (struct usb_hub_descriptor *)buf;
-				if ((len = usb_control_msg(uh,
-						USB_DIR_IN | USB_RT_HUB, USB_REQ_GET_DESCRIPTOR,
-						USB_DT_HUB << 8, 0, buf, sizeof(buf), CTRL_TIMEOUT)) >
-						sizeof(struct usb_hub_descriptor)) {
+			if (uh == NULL)
+				continue;
 
-					if (!(uhd->wHubCharacteristics[0] & HUB_CHAR_PORTIND) &&
-							(uhd->wHubCharacteristics[0] & HUB_CHAR_LPSM) >= 2)
-						continue;
+			char buf[1024];
+			int len;
+			int nport;
+			struct usb_hub_descriptor *uhd = (struct usb_hub_descriptor *)buf;
+			len = usb_control_msg(uh,
+				USB_DIR_IN | USB_RT_HUB, USB_REQ_GET_DESCRIPTOR,
+				USB_DT_HUB << 8, 0, buf, sizeof(buf), CTRL_TIMEOUT);
+			if (len <= sizeof(struct usb_hub_descriptor)) {
+				perror("Can't get hub descriptor");
+				usb_close(uh);
+				continue;
+			}
 
-					if (print) {
-						printf("Hub #%d at %s:%03d\n", number_of_hubs_with_feature,
-							bus->dirname, dev->devnum);
-					}
+			if (!(uhd->wHubCharacteristics[0] & HUB_CHAR_PORTIND) &&
+					(uhd->wHubCharacteristics[0] & HUB_CHAR_LPSM) >= 2)
+				continue;
 
-					switch ((uhd->wHubCharacteristics[0] & HUB_CHAR_LPSM)) {
-					case 0:
-						if (print)
-							fprintf(stderr, " INFO: ganged switching.\n");
-						break;
-					case 1:
-						if (print)
-							fprintf(stderr, " INFO: individual power switching.\n");
-						break;
-					case 2:
-					case 3:
-						if (print)
-							fprintf(stderr, " WARN: No power switching.\n");
-						break;
-					}
+			if (print) {
+				printf("Hub #%d at %s:%03d\n", num_hubs,
+					bus->dirname, dev->devnum);
 
-					if (print && !(uhd->wHubCharacteristics[0] & HUB_CHAR_PORTIND))
-						fprintf(stderr, " WARN: Port indicators are NOT supported.\n");
-				} else {
-					perror("Can't get hub descriptor");
-					usb_close(uh);
-					continue;
+				switch ((uhd->wHubCharacteristics[0] & HUB_CHAR_LPSM)) {
+				case 0:
+					fprintf(stderr, " INFO: ganged switching.\n");
+					break;
+				case 1:
+					fprintf(stderr, " INFO: individual power switching.\n");
+					break;
+				case 2:
+				case 3:
+					fprintf(stderr, " WARN: No power switching.\n");
+					break;
 				}
 
-				nport = buf[2];
-				hubs[number_of_hubs_with_feature].busnum = atoi(bus->dirname);
-				hubs[number_of_hubs_with_feature].devnum = dev->devnum;
-				hubs[number_of_hubs_with_feature].dev = dev;
-				hubs[number_of_hubs_with_feature].indicator_support =
-					(uhd->wHubCharacteristics[0] & HUB_CHAR_PORTIND) ? 1 : 0;
-				hubs[number_of_hubs_with_feature].nport = nport;
-
-				number_of_hubs_with_feature++;
-
-				if (verbose)
-					hub_port_status(uh, nport);
-
-				usb_close(uh);
+				if (!(uhd->wHubCharacteristics[0] & HUB_CHAR_PORTIND))
+					fprintf(stderr, " WARN: Port indicators are NOT supported.\n");
 			}
+
+			nport = buf[2];
+			hubs[num_hubs].busnum = atoi(bus->dirname);
+			hubs[num_hubs].devnum = dev->devnum;
+			hubs[num_hubs].dev = dev;
+			hubs[num_hubs].indicator_support =
+				(uhd->wHubCharacteristics[0] & HUB_CHAR_PORTIND) ? 1 : 0;
+			hubs[num_hubs].nport = nport;
+
+			num_hubs++;
+
+			if (verbose)
+				hub_port_status(uh, nport);
+
+			usb_close(uh);
 		}
 	}
 
-	return number_of_hubs_with_feature;
+	return num_hubs;
 }
 
 int get_hub(int busnum, int devnum)
 {
 	int i;
 
-	for (i = 0; i < number_of_hubs_with_feature; i++)
+	for (i = 0; i < num_hubs; i++)
 		if (hubs[i].busnum == busnum && hubs[i].devnum == devnum)
 			return i;
 
@@ -237,62 +235,61 @@ int main(int argc, const char *argv[])
 		listing = 1;
 
 	for (i = 1; i < argc; i++) {
-		if (argv[i][0] == '-') {
-			switch (argv[i][1]) {
-			case 'h':
-				if (++i >= argc || busnum > 0 || devnum > 0)
-					exit_with_usage(argv[0]);
-				hub = atoi(argv[i]);
-				break;
+		if (argv[i][0] != '-')
+			exit_with_usage(argv[0]);
 
-			case 'b':
-				if (++i >= argc || hub >= 0)
-					exit_with_usage (argv[0]);
-				busnum = atoi(argv[i]);
-				break;
-
-			case 'd':
-				if (++i >= argc || hub >= 0)
-					exit_with_usage (argv[0]);
-				devnum = atoi(argv[i]);
-				break;
-
-			case 'P':
-				if (++i >= argc)
-					exit_with_usage (argv[0]);
-				port = atoi(argv[i]);
-				break;
-
-			case 'l':
-				if (cmd != COMMAND_SET_NONE)
-					exit_with_usage (argv[0]);
-				if (++i < argc)
-					value = atoi(argv[i]);
-				else
-					value = HUB_LED_GREEN;
-				cmd = COMMAND_SET_LED;
-				break;
-
-			case 'p':
-				if (cmd != COMMAND_SET_NONE)
-					exit_with_usage(argv[0]);
-				if (++i < argc)
-					value = atoi(argv[i]);
-				else
-					value= 0;
-				cmd = COMMAND_SET_POWER;
-				break;
-
-			case 'v':
-				verbose = 1;
-				if (argc == 2)
-					listing = 1;
-				break;
-
-			default:
+		switch (argv[i][1]) {
+		case 'h':
+			if (++i >= argc || busnum > 0 || devnum > 0)
 				exit_with_usage(argv[0]);
-			}
-		} else {
+			hub = atoi(argv[i]);
+			break;
+
+		case 'b':
+			if (++i >= argc || hub >= 0)
+				exit_with_usage (argv[0]);
+			busnum = atoi(argv[i]);
+			break;
+
+		case 'd':
+			if (++i >= argc || hub >= 0)
+				exit_with_usage (argv[0]);
+			devnum = atoi(argv[i]);
+			break;
+
+		case 'P':
+			if (++i >= argc)
+				exit_with_usage (argv[0]);
+			port = atoi(argv[i]);
+			break;
+
+		case 'l':
+			if (cmd != COMMAND_SET_NONE)
+				exit_with_usage (argv[0]);
+			if (++i < argc)
+				value = atoi(argv[i]);
+			else
+				value = HUB_LED_GREEN;
+			cmd = COMMAND_SET_LED;
+			break;
+
+		case 'p':
+			if (cmd != COMMAND_SET_NONE)
+				exit_with_usage(argv[0]);
+			if (++i < argc)
+				value = atoi(argv[i]);
+			else
+				value= 0;
+			cmd = COMMAND_SET_POWER;
+			break;
+
+		case 'v':
+			verbose = 1;
+			if (argc == 2)
+				listing = 1;
+			break;
+
+		default:
 			exit_with_usage(argv[0]);
 		}
 	}
@@ -324,46 +321,43 @@ int main(int argc, const char *argv[])
 	if (hub < 0)
 		hub = get_hub(busnum, devnum);
 
-	if (hub >= 0 && hub < number_of_hubs_with_feature)
+	if (hub >= 0 && hub < num_hubs)
 		uh = usb_open(hubs[hub].dev);
 
 	if (uh == NULL) {
 		fprintf(stderr, "Device not found.\n");
-		result = 1;
-	} else {
-		if (cmd == COMMAND_SET_POWER) {
-			if (value) {
-				request = USB_REQ_SET_FEATURE;
-				feature = USB_PORT_FEAT_POWER;
-				index = port;
-			} else {
-				request = USB_REQ_CLEAR_FEATURE;
-				feature = USB_PORT_FEAT_POWER;
-				index = port;
-			}
-		} else {
-			request = USB_REQ_SET_FEATURE;
-			feature = USB_PORT_FEAT_INDICATOR;
-			index = (value << 8) | port;
-			printf("port %02x value = %02x\n", port, value);
-		}
-
-		if (verbose) {
-			printf("Send control message (REQUEST=%d, FEATURE=%d, INDEX=%04x)\n",
-				request, feature, index);
-		}
-
-		if (usb_control_msg(uh, USB_RT_PORT, request, feature, index,
-				NULL, 0, CTRL_TIMEOUT) < 0) {
-			perror("failed to control.\n");
-			result = 1;
-		}
-
-		if (verbose)
-			hub_port_status(uh, hubs[hub].nport);
-
-		usb_close(uh);
+		exit(1);
 	}
+
+	if (cmd == COMMAND_SET_POWER) {
+		if (value)
+			request = USB_REQ_SET_FEATURE;
+		else
+			request = USB_REQ_CLEAR_FEATURE;
+		feature = USB_PORT_FEAT_POWER;
+		index = port;
+	} else {
+		request = USB_REQ_SET_FEATURE;
+		feature = USB_PORT_FEAT_INDICATOR;
+		index = (value << 8) | port;
+		printf("port %02x value = %02x\n", port, value);
+	}
+
+	if (verbose) {
+		printf("Send control message (REQUEST=%d, FEATURE=%d, INDEX=%04x)\n",
+			request, feature, index);
+	}
+
+	if (usb_control_msg(uh, USB_RT_PORT, request, feature, index,
+			NULL, 0, CTRL_TIMEOUT) < 0) {
+		perror("failed to control.\n");
+		result = 1;
+	}
+
+	if (verbose)
+		hub_port_status(uh, hubs[hub].nport);
+
+	usb_close(uh);
 
 	exit(result);
 }
