@@ -1,11 +1,14 @@
-/*
- * Copyright (C) 2006 Free Software Initiative of Japan
+/**
+ * @mainpage Control USB power on a port by port basis on some USB hubs.
  *
- * Author: NIIBE Yutaka  <gniibe at fsij.org>
+ * This only works on USB hubs that have the hardware necessary to allow
+ * software controlled power switching. Most hubs DO NOT include the
+ * hardware.
  *
- * This file can be distributed under the terms and conditions of the
- * GNU General Public License version 2 (or later).
- *
+ * @author NIIBE Yutaka <gniibe at fsij.org>
+ * @author Bert van Hall <bert.vanhall\@avionic-design.de>
+ * @date 2006-2015
+ * @copyright GPLv3
  */
 
 #include <errno.h>
