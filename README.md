@@ -22,9 +22,9 @@ You'll also need the GCC tool chain.
 Compiling
 =========
 
-To compile the hub-ctrl.c program run the following compile command.
+To compile the hub-ctrl.c program let autotools take care of it:
 
-    gcc -o hub-ctrl hub-ctrl.c -lusb
+    ./configure && make
 
 That results in an executable binary called hub-ctrl.
 

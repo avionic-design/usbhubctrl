@@ -7,7 +7,7 @@
  *
  * @author NIIBE Yutaka <gniibe at fsij.org>
  * @author Bert van Hall <bert.vanhall\@avionic-design.de>
- * @date 2006-2015
+ * @date 2006-2016
  * @copyright GPLv3
  */
 
