@@ -3,6 +3,8 @@
 *~
 #*#
 .*
+*.log
+*.trs
 !.gitignore
 aclocal.m4
 autom4te.cache/
@@ -30,3 +32,6 @@ Makefile
 Makefile.in
 missing
 stamp-h1
+tap-driver.sh
+test-driver
+tests/check_hub_ctrl

@@ -1,8 +1,13 @@
 ACLOCAL_AMFLAGS = -I m4
 
+if BUILD_TEST
+TESTDIR = tests
+endif
+
 SUBDIRS = \
 	src \
-	bin
+	bin \
+	$(TESTDIR)
 
 include_HEADERS = \
 	include/file_io.h \
