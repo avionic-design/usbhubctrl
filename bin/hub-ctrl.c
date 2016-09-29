@@ -32,8 +32,8 @@
 #define HUB_CHAR_LPSM			0x0003
 #define HUB_CHAR_PORTIND		0x0080
 
-#define CTRL_TIMEOUT 			1000
-#define USB_STATUS_SIZE 		4
+#define CTRL_TIMEOUT			1000
+#define USB_STATUS_SIZE			4
 
 #define MAX_HUBS 128
 
@@ -65,13 +65,13 @@ static void usage(const char *progname)
 		"Usage: %s [{-n HUBNUM | -b BUSNUM -d DEVNUM}] [-v]\n"
 		"          [-P PORT] [{-p [VALUE]|-l [VALUE]}]\n\n"
 		"Options:\n"
-		"-h                     help\n"
 		"-b     <bus-number>    USB bus number\n"
 		"-d     <dev-number>    USB device number\n"
+		"-h                     help\n"
+		"-l     <leds>          Set USB hub LEDs to specified value[0, 1, 2, 3]\n"
 		"-n     <hub-ID>        USB hub ID\n"
 		"-P     <port-ID>       ID of USB hub port\n"
 		"-p     <enable>        Value enable or disable port [0, 1]\n"
-		"-l     <leds>          Set USB hub LEDs to specified value[0, 1, 2, 3]\n"
 		"-v                     verbose\n",
 		progname);
 }
@@ -84,19 +84,19 @@ static void exit_with_usage(const char *progname)
 
 static void hub_port_status(usb_dev_handle *uh, int nport)
 {
+	char buf[USB_STATUS_SIZE];
+	int ret;
 	int i;
 
 	printf(" Hub Port Status:\n");
 	for (i = 0; i < nport; i++) {
-		char buf[USB_STATUS_SIZE];
-		int ret;
 
-		ret = usb_control_msg (uh,
+		ret = usb_control_msg(uh,
 			USB_ENDPOINT_IN | USB_TYPE_CLASS | USB_RECIP_OTHER,
 			USB_REQ_GET_STATUS, 0, i + 1, buf, USB_STATUS_SIZE,
 			CTRL_TIMEOUT);
 		if (ret < 0) {
-			fprintf (stderr,
+			fprintf(stderr,
 				"cannot read port %d status, %s (%d)\n",
 				i + 1, strerror(errno), errno);
 			break;
@@ -128,8 +128,15 @@ static void hub_port_status(usb_dev_handle *uh, int nport)
 
 static int usb_find_hubs(int listing, int verbose, int busnum, int devnum, int hub)
 {
+	struct usb_hub_descriptor *uhd = NULL;
 	struct usb_bus *busses;
+	struct usb_device *dev;
 	struct usb_bus *bus;
+	usb_dev_handle *uh;
+	char buf[1024];
+	int print = 0;
+	int nport;
+	int len;
 
 	num_hubs = 0;
 	busses = usb_get_busses();
@@ -139,11 +146,9 @@ static int usb_find_hubs(int listing, int verbose, int busnum, int devnum, int h
 	}
 
 	for (bus = busses; bus; bus = bus->next) {
-		struct usb_device *dev;
 
 		for (dev = bus->devices; dev; dev = dev->next) {
-			usb_dev_handle *uh;
-			int print = 0;
+			uhd = (struct usb_hub_descriptor *)buf;
 
 			if (dev->descriptor.bDeviceClass != USB_CLASS_HUB &&
 					dev->descriptor.bDeviceClass != USB_CLASS_VENDOR_SPEC)
@@ -160,10 +165,6 @@ static int usb_find_hubs(int listing, int verbose, int busnum, int devnum, int h
 			if (uh == NULL)
 				continue;
 
-			char buf[1024];
-			int len;
-			int nport;
-			struct usb_hub_descriptor *uhd = (struct usb_hub_descriptor *)buf;
 			len = usb_control_msg(uh,
 				USB_DIR_IN | USB_RT_HUB, USB_REQ_GET_DESCRIPTOR,
 				USB_DT_HUB << 8, 0, buf, sizeof(buf), CTRL_TIMEOUT);
@@ -229,20 +230,20 @@ int get_hub(int busnum, int devnum)
 	return -1;
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char **argv)
 {
-	const char short_options[] = "hb:d:n:P:p:l:v";
-	int busnum = 0;
-	int devnum = 0;
-	int cmd = COMMAND_SET_NONE;
-	int port = 1;
-	unsigned long argument = 0;
+	const char short_options[] = "b:d:hl:n:P:p:v";
 	int request, feature, index;
-	int result = 0;
+	int cmd = COMMAND_SET_NONE;
+	unsigned long argument = 0;
+	usb_dev_handle *uh = NULL;
 	int listing = 0;
 	int verbose = 0;
+	int busnum = 0;
+	int devnum = 0;
+	int result = 0;
+	int port = 1;
 	int hub = -1;
-	usb_dev_handle *uh = NULL;
 	int option;
 
 	if (argc == 1)
@@ -271,7 +272,7 @@ int main(int argc, char *argv[])
 
 		case 'b':
 			if (hub >= 0)
-				exit_with_usage (argv[0]);
+				exit_with_usage(argv[0]);
 			errno = 0;
 			argument = strtoul(optarg, NULL, 10);
 			if (errno != 0 || argument == 0) {
@@ -283,7 +284,7 @@ int main(int argc, char *argv[])
 
 		case 'd':
 			if (hub >= 0)
-				exit_with_usage (argv[0]);
+				exit_with_usage(argv[0]);
 			errno = 0;
 			argument = strtoul(optarg, NULL, 10);
 			if (errno != 0 || argument == 0) {
@@ -305,7 +306,7 @@ int main(int argc, char *argv[])
 
 		case 'l':
 			if (cmd != COMMAND_SET_NONE)
-				exit_with_usage (argv[0]);
+				exit_with_usage(argv[0]);
 			errno = 0;
 			argument = strtoul(optarg, NULL, 10);
 			if (errno != 0 || argument > 3) {
