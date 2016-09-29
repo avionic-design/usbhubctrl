@@ -24,6 +24,7 @@ CFLAGS="$CFLAGS -Wall -Werror"
 
 AC_CONFIG_FILES([
 	Makefile
+	src/Makefile
 	bin/Makefile
 	doc/doxyfile
 ])
