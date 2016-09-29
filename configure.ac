@@ -21,4 +21,5 @@ CFLAGS="$CFLAGS -Wall -Werror"
 
 AC_OUTPUT([
 	Makefile
+	bin/Makefile
 ])
