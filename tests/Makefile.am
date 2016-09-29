@@ -3,6 +3,8 @@ TESTS = check_hub_ctrl
 check_PROGRAMS = check_hub_ctrl
 
 check_hub_ctrl_SOURCES = \
+	check_file_io.c \
+	check_file_io.h \
 	check_hub_ctrl.c \
 	check_usb_eeprom.c \
 	check_usb_eeprom.h \

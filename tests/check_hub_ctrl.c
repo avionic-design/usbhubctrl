@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "check_usb_eeprom.h"
+#include "check_file_io.h"
 
 int main(void)
 {
@@ -14,6 +15,8 @@ int main(void)
 	master_suite = suite_create("USB_HUB_CTRL");
 
 	sr = srunner_create(master_suite);
+
+	file_io_suite(master_suite);
 
 	eeprom_suite(master_suite);
 
