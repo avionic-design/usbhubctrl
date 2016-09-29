@@ -13,6 +13,7 @@
  */
 
 #include <errno.h>
+#include <getopt.h>
 #include <usb.h>
 #include <stdio.h>
 #include <string.h>
@@ -61,8 +62,18 @@ static int num_hubs;
 static void usage(const char *progname)
 {
 	fprintf(stderr,
-		"Usage: %s [{-h HUBNUM | -b BUSNUM -d DEVNUM}] \\\n"
-		"          [-P PORT] [{-p [VALUE]|-l [VALUE]}]\n", progname);
+		"Usage: %s [{-n HUBNUM | -b BUSNUM -d DEVNUM}] [-v]\n"
+		"          [-P PORT] [{-p [VALUE]|-l [VALUE]}]\n\n"
+		"Options:\n"
+		"-h                     help\n"
+		"-b     <bus-number>    USB bus number\n"
+		"-d     <dev-number>    USB device number\n"
+		"-n     <hub-ID>        USB hub ID\n"
+		"-P     <port-ID>       ID of USB hub port\n"
+		"-p     <enable>        Value enable or disable port [0, 1]\n"
+		"-l     <leds>          Set USB hub LEDs to specified value[0, 1, 2, 3]\n"
+		"-v                     verbose\n",
+		progname);
 }
 
 static void exit_with_usage(const char *progname)
@@ -218,70 +229,103 @@ int get_hub(int busnum, int devnum)
 	return -1;
 }
 
-int main(int argc, const char *argv[])
+int main(int argc, char *argv[])
 {
+	const char short_options[] = "hb:d:n:P:p:l:v";
 	int busnum = 0;
 	int devnum = 0;
 	int cmd = COMMAND_SET_NONE;
 	int port = 1;
-	int value = 0;
+	unsigned long argument = 0;
 	int request, feature, index;
 	int result = 0;
 	int listing = 0;
 	int verbose = 0;
 	int hub = -1;
 	usb_dev_handle *uh = NULL;
-	int i;
+	int option;
 
 	if (argc == 1)
 		listing = 1;
 
-	for (i = 1; i < argc; i++) {
-		if (argv[i][0] != '-')
-			exit_with_usage(argv[0]);
+	for (;;) {
+		option = getopt(argc, argv, short_options);
+		if (option == -1)
+			break;
 
-		switch (argv[i][1]) {
+		switch (option) {
 		case 'h':
-			if (++i >= argc || busnum > 0 || devnum > 0)
+			usage(argv[0]);
+			exit(0);
+		case 'n':
+			if (busnum > 0 || devnum > 0)
 				exit_with_usage(argv[0]);
-			hub = atoi(argv[i]);
+			errno = 0;
+			argument = strtoul(optarg, NULL, 10);
+			if (errno != 0 || argument == 0) {
+				fprintf(stderr, "Command line argument for -n is out of range.\n\n");
+				exit(1);
+			}
+			hub = argument;
 			break;
 
 		case 'b':
-			if (++i >= argc || hub >= 0)
+			if (hub >= 0)
 				exit_with_usage (argv[0]);
-			busnum = atoi(argv[i]);
+			errno = 0;
+			argument = strtoul(optarg, NULL, 10);
+			if (errno != 0 || argument == 0) {
+				fprintf(stderr, "Command line argument for -b is out of range.\n\n");
+				exit(1);
+			}
+			busnum = argument;
 			break;
 
 		case 'd':
-			if (++i >= argc || hub >= 0)
+			if (hub >= 0)
 				exit_with_usage (argv[0]);
-			devnum = atoi(argv[i]);
+			errno = 0;
+			argument = strtoul(optarg, NULL, 10);
+			if (errno != 0 || argument == 0) {
+				fprintf(stderr, "Command line argument for -d is out of range.\n\n");
+				exit(1);
+			}
+			devnum = argument;
 			break;
 
 		case 'P':
-			if (++i >= argc)
-				exit_with_usage (argv[0]);
-			port = atoi(argv[i]);
+			errno = 0;
+			argument = strtoul(optarg, NULL, 10);
+			if (errno != 0 || argument == 0) {
+				fprintf(stderr, "Command line argument for -P is out of range.\n\n");
+				exit(1);
+			}
+			port = argument;
 			break;
 
 		case 'l':
 			if (cmd != COMMAND_SET_NONE)
 				exit_with_usage (argv[0]);
-			if (++i < argc)
-				value = atoi(argv[i]);
-			else
-				value = HUB_LED_GREEN;
+			errno = 0;
+			argument = strtoul(optarg, NULL, 10);
+			if (errno != 0 || argument > 3) {
+				fprintf(stderr, "Command line argument for -l is out of range.\n\n");
+				usage(argv[0]);
+				exit(1);
+			}
 			cmd = COMMAND_SET_LED;
 			break;
 
 		case 'p':
 			if (cmd != COMMAND_SET_NONE)
 				exit_with_usage(argv[0]);
-			if (++i < argc)
-				value = atoi(argv[i]);
-			else
-				value= 0;
+			errno = 0;
+			argument = strtoul(optarg, NULL, 10);
+			if (errno != 0 || argument > 1) {
+				fprintf(stderr, "Command line argument for -p is out of range.\n\n");
+				usage(argv[0]);
+				exit(1);
+			}
 			cmd = COMMAND_SET_POWER;
 			break;
 
@@ -332,7 +376,7 @@ int main(int argc, const char *argv[])
 	}
 
 	if (cmd == COMMAND_SET_POWER) {
-		if (value)
+		if (argument)
 			request = USB_REQ_SET_FEATURE;
 		else
 			request = USB_REQ_CLEAR_FEATURE;
@@ -341,8 +385,8 @@ int main(int argc, const char *argv[])
 	} else {
 		request = USB_REQ_SET_FEATURE;
 		feature = USB_PORT_FEAT_INDICATOR;
-		index = (value << 8) | port;
-		printf("port %02x value = %02x\n", port, value);
+		index = (argument << 8) | port;
+		printf("port %02x value = %02lx\n", port, argument);
 	}
 
 	if (verbose) {
