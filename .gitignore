@@ -16,6 +16,8 @@ config.status
 config.sub
 configure
 depcomp
+doc/html/
+doc/latex/
 hub-ctrl
 install-sh
 libtool
