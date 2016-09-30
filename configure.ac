@@ -14,6 +14,9 @@ AC_PROG_CC
 AM_PROG_CC_C_O
 AC_PROG_INSTALL
 
+DX_INIT_DOXYGEN([$PACKAGE_NAME], [doc/doxyfile], [doc])
+AM_CONDITIONAL([HAVE_DOXYGEN],[test -n "${DX_DOXYGEN}"])
+
 PKG_CHECK_MODULES(LIBUSB, libusb)
 AC_CHECK_HEADER([usb.h])
 
@@ -22,4 +25,5 @@ CFLAGS="$CFLAGS -Wall -Werror"
 AC_OUTPUT([
 	Makefile
 	bin/Makefile
+	doc/doxyfile
 ])
