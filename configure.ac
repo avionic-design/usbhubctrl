@@ -22,8 +22,10 @@ AC_CHECK_HEADER([usb.h])
 
 CFLAGS="$CFLAGS -Wall -Werror"
 
-AC_OUTPUT([
+AC_CONFIG_FILES([
 	Makefile
 	bin/Makefile
 	doc/doxyfile
 ])
+
+AC_OUTPUT
