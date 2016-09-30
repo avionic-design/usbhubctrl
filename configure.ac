@@ -14,7 +14,7 @@ AC_PROG_CC
 AM_PROG_CC_C_O
 AC_PROG_INSTALL
 
-DX_INIT_DOXYGEN([$PACKAGE_NAME], [doc/doxyfile], [doc])
+DX_INIT_DOXYGEN([$PACKAGE_NAME], [doc/doxyfile], [doc/doxygen])
 AM_CONDITIONAL([HAVE_DOXYGEN],[test -n "${DX_DOXYGEN}"])
 
 PKG_CHECK_MODULES(LIBUSB, libusb)
