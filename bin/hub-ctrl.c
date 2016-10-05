@@ -134,7 +134,8 @@ static int usb_find_hubs(int listing, int verbose, int busnum, int devnum, int h
 			usb_dev_handle *uh;
 			int print = 0;
 
-			if (dev->descriptor.bDeviceClass != USB_CLASS_HUB)
+			if (dev->descriptor.bDeviceClass != USB_CLASS_HUB &&
+					dev->descriptor.bDeviceClass != USB_CLASS_VENDOR_SPEC)
 				continue;
 
 			if (listing || (verbose && ((atoi(bus->dirname) == busnum &&
