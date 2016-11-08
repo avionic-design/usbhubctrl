@@ -1,5 +1,5 @@
 AC_PREREQ(2.66)
-AC_INIT([usbhubctrl], [0.2.0], [bugs@avionic-design.de], [usbhubctrl])
+AC_INIT([usbhubctrl], [0.2.1], [bugs@avionic-design.de], [usbhubctrl])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([Makefile.am])
 AC_CONFIG_HEADER([config.h])
