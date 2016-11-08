@@ -278,6 +278,7 @@ int main(int argc, char **argv)
 	int hub = -1;
 	int len = 0;
 	int option;
+	int i;
 
 	if (argc == 1)
 		listing = 1;
@@ -488,7 +489,7 @@ int main(int argc, char **argv)
 		}
 
 		if (verbose) {
-			for (int i = 0; i < ret_val; i++) {
+			for (i = 0; i < ret_val; i++) {
 				if (!(i % 16))
 					printf("\n %04x:   ", i);
 				printf("%02X ", buffer[i]);
