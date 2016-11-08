@@ -4,6 +4,10 @@ SUBDIRS = \
 	src \
 	bin
 
+include_HEADERS = \
+	include/file_io.h \
+	include/usb_eeprom.h
+
 EXTRA_DIST = \
 	doc/doxyfile.in
 
