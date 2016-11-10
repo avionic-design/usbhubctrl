@@ -92,6 +92,7 @@ static void usage(const char *progname)
 		"-n     <hub-ID>        USB hub ID\n"
 		"-P     <port-ID>       ID of USB hub port\n"
 		"-p     <enable>        Value enable or disable port [0, 1]\n"
+		"-q     <quiet>         no output at all\n"
 		"-r     <N>             Read N bytes from EEPROM\n"
 		"-v                     verbose\n"
 		"-w     <N>             Write N bytes to EEPROM\n",
@@ -254,7 +255,7 @@ int get_hub(int busnum, int devnum)
 
 int main(int argc, char **argv)
 {
-	const char short_options[] = "b:d:e:f:hl:n:P:p:r:vw:";
+	const char short_options[] = "b:d:e:f:hl:n:P:p:qr:vw:";
 	int feature = USB_PORT_FEAT_INDICATOR;
 	int request = USB_REQ_SET_FEATURE;
 	char *default_file = "output.iic";
@@ -274,6 +275,7 @@ int main(int argc, char **argv)
 	int devnum = 0;
 	int result = 0;
 	int index = 0;
+	int quiet = 0;
 	int port = 1;
 	int hub = -1;
 	int len = 0;
@@ -371,6 +373,10 @@ int main(int argc, char **argv)
 			verbose = 1;
 			if (argc == 2)
 				listing = 1;
+			break;
+
+		case 'q':
+			quiet = 1;
 			break;
 
 		case 'r':
@@ -548,12 +554,13 @@ int main(int argc, char **argv)
 			goto cleanup;
 		}
 
-		if (memcmp(buffer, cmp_buffer, write_size) == 0) {
-			fprintf(stdout, "File content successfully written to EEPROM\n");
-		} else {
+		if (memcmp(buffer, cmp_buffer, write_size) != 0) {
 			fprintf(stderr, "EEPROM writing failed\n");
 			result = 1;
 			goto cleanup;
+		} else if (!quiet) {
+			printf("File content successfully written %i bytes to EEPROM\n",
+					write_size);
 		}
 
 		break;
@@ -585,7 +592,8 @@ int main(int argc, char **argv)
 		request = USB_REQ_SET_FEATURE;
 		feature = USB_PORT_FEAT_INDICATOR;
 		index = (argument << 8) | port;
-		printf("port %02x value = %02lx\n", port, argument);
+		if (!quiet)
+			printf("port %02x value = %02lx\n", port, argument);
 		len = usb_control_msg(uh, USB_RT_PORT, request, feature, index,
 				NULL, 0, CTRL_TIMEOUT);
 		if (len < 0) {
