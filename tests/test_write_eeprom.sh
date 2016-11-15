@@ -11,8 +11,8 @@ BUSNR=$(echo "$usbdesc" | cut -d ' ' -f2)
 DEVNR=$(echo "$usbdesc" | cut -d ' ' -f4 | tr -d ':')
 
 if [ -z "$BUSNR" -o -z "$DEVNR" ]; then
-	echo 'Cannot find Cypress hub on the bus.'
-	exit 1;
+        echo 'Cannot find Cypress hub on the bus.'
+        exit 1;
 fi
 
 echo
@@ -39,12 +39,10 @@ while [ "$i" -lt "$runs" ]; do
 
         hub-ctrl -b "$BUSNR" -d "$DEVNR" -e "$bytes" > /dev/null
 
-        printf "%s" "$eeprom" | hub-ctrl -b "$BUSNR" -d "$DEVNR" -w "$bytes" -f - > /dev/null
-        ret=$?
-
-        fails=$((fails + ret))
-        i+=1
-
+        printf "%b" "$eeprom" | \
+                hub-ctrl -b "$BUSNR" -d "$DEVNR" -w "$bytes" -f - > /dev/null || \
+                fails=$((fails + 1))
+        i=$((i + 1))
 done;
 
 successes=$((runs - fails))
