@@ -566,12 +566,20 @@ int main(int argc, char **argv)
 		break;
 	case COMMAND_CLR_EEPROM:
 		ret_val = usb_eeprom_erase(uh, erase_size);
-		if (ret_val != erase_size) {
-			fprintf(stderr, "EEPROM erase failed.\n");
-			result = 1;
-			goto cleanup;
+
+		if (ret_val == erase_size)
+			break;
+
+		if (ret_val < 0) {
+			fprintf(stderr, "EEPROM erase failed with error code: %s\n",
+					usb_strerror());
+		} else {
+			fprintf(stderr, "EEPROM erase failed, %i bytes erased instead of %i bytes\n",
+					ret_val, erase_size);
 		}
-		break;
+
+		result = 1;
+		goto cleanup;
 	case COMMAND_SET_POWER:
 		if (argument)
 			request = USB_REQ_SET_FEATURE;
