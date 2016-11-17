@@ -19,6 +19,7 @@ config.sub
 configure
 depcomp
 doc/doxygen/
+doxyfile
 hub-ctrl
 install-sh
 libtool
