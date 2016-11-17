@@ -21,8 +21,10 @@
 #define USB_REQ_READ			0x02
 /** USB control message Request for write */
 #define USB_REQ_WRITE			0x01
-/** Time constant in milliseconds for timeout USB control message */
-#define CTRL_TIMEOUT			1000
+/** Time constant in ms for timeout per 256 Bytes for USB control message */
+#define CTRL_TIMEOUT_PER_256_BYTES	1000
+/** calculate the timeout for specific amount of bytes */
+#define GET_TIMEOUT(t) (((t + 256 - 1) >> 8) * CTRL_TIMEOUT_PER_256_BYTES)
 /** maximum EEPROM size */
 #define MAX_EEPROM_SIZE 0x1000
 

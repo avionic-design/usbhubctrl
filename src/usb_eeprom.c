@@ -39,7 +39,7 @@ int usb_eeprom_read(usb_dev_handle *uh, uint8_t *buffer, size_t size)
 		return -ERANGE;
 
 	len = usb_control_msg(uh, USB_REQ_TYPE_READ_EEPROM, USB_REQ_READ, 0,
-			0, (char *)buffer, size, CTRL_TIMEOUT);
+			0, (char *)buffer, size, GET_TIMEOUT(size));
 
 	return len;
 }
@@ -54,7 +54,7 @@ int usb_eeprom_write(usb_dev_handle *uh, uint8_t *buffer, size_t size)
 		return -ERANGE;
 
 	len = usb_control_msg(uh, USB_REQ_TYPE_WRITE_EEPROM, USB_REQ_WRITE,
-			0, 0, (char *)buffer, size, CTRL_TIMEOUT);
+			0, 0, (char *)buffer, size, GET_TIMEOUT(size));
 
 	/*
 	 * Sleep for more than 5 ms to guarantee EEPROM data is written.

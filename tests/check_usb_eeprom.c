@@ -82,7 +82,7 @@ START_TEST(test_eeprom_erase)
 	ck_assert_int_eq(msg->index, 0);
 	ck_assert_ptr_ne(msg->bytes, NULL);
 	ck_assert_int_eq(msg->size, sizeof(eeprom_buffer));
-	ck_assert_int_eq(msg->timeout, CTRL_TIMEOUT);
+	ck_assert_int_eq(msg->timeout, GET_TIMEOUT(sizeof(eeprom_buffer)));
 
 	for (i = 0; i < sizeof(eeprom_buffer); i++)
 		ck_assert_uint_eq(msg->bytes[i], 0xff);
@@ -127,7 +127,7 @@ START_TEST(test_eeprom_write)
 	ck_assert_int_eq(msg->index, 0);
 	ck_assert_ptr_ne(msg->bytes, NULL);
 	ck_assert_int_eq(msg->size, sizeof(eeprom_buffer));
-	ck_assert_int_eq(msg->timeout, CTRL_TIMEOUT);
+	ck_assert_int_eq(msg->timeout, GET_TIMEOUT(sizeof(eeprom_buffer)));
 
 	ck_assert_int_eq(memcmp(msg->bytes, eeprom_buffer,
 			sizeof(eeprom_buffer)), 0);
@@ -172,7 +172,7 @@ START_TEST(test_eeprom_read)
 	ck_assert_int_eq(msg->index, 0);
 	ck_assert_ptr_ne(msg->bytes, NULL);
 	ck_assert_int_eq(msg->size, sizeof(eeprom_buffer));
-	ck_assert_int_eq(msg->timeout, CTRL_TIMEOUT);
+	ck_assert_int_eq(msg->timeout, GET_TIMEOUT(sizeof(eeprom_buffer)));
 }
 END_TEST
 
