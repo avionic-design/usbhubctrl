@@ -28,6 +28,15 @@ AS_IF(test "x$have_check" = xyes)
 	AC_CHECK_HEADER([check.h])
 AM_CONDITIONAL([BUILD_TEST], [test "x$have_check" = xyes])
 
+AC_ARG_WITH([udev-dir],
+	AS_HELP_STRING([--with-udev-dir=DIR],
+		[Directory where udev expects its rules files
+		[[default=/lib/udev/rules.d]]]),
+	[udevdir="$withval"],
+	[udevdir="/lib/udev/rules.d"])
+UDEV_RULES_DIR=${udevdir}
+AC_SUBST(UDEV_RULES_DIR)
+
 CFLAGS="$CFLAGS -Wall -Werror"
 
 AC_CONFIG_FILES([
@@ -36,6 +45,7 @@ AC_CONFIG_FILES([
 	bin/Makefile
 	doc/doxyfile
 	tests/Makefile
+	udev/Makefile
 ])
 
 AC_OUTPUT

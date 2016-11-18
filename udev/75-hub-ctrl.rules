@@ -1,0 +1,3 @@
+# This is a udev file for Cypress USB hub (CY7C65620/CY7C65630), which changes
+# its permission to 0666 (everyone can read/write this USB hub) on Linux systems.
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="04b4", ATTRS{idProduct}=="6560", MODE="0666"

@@ -9,6 +9,7 @@ endif
 SUBDIRS = \
 	src \
 	bin \
+	udev \
 	$(TESTDIR)
 
 include_HEADERS = \
