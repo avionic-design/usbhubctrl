@@ -23,20 +23,20 @@
 
 #include <errno.h>
 #include <getopt.h>
-#include <usb.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include <libusb.h>
+
 #include "file_io.h"
 #include "usb_eeprom.h"
 
-#define USB_RT_HUB			(USB_TYPE_CLASS | USB_RECIP_DEVICE)
-#define USB_RT_PORT			(USB_TYPE_CLASS | USB_RECIP_OTHER)
+#define USB_RT_HUB			(LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_DEVICE)
+#define USB_RT_PORT			(LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_OTHER)
 #define USB_PORT_FEAT_POWER		8
 #define USB_PORT_FEAT_INDICATOR		22
-#define USB_DIR_IN			0x80		/* to host */
 
 #define COMMAND_SET_NONE		0
 #define COMMAND_SET_LED			(1 << 0)
@@ -55,19 +55,18 @@
 #define MAX_HUBS 128
 
 struct usb_hub_descriptor {
-	unsigned char bDescLength;
-	unsigned char bDescriptorType;
-	unsigned char bNbrPorts;
-	unsigned char wHubCharacteristics[2];
-	unsigned char bPwrOn2PwrGood;
-	unsigned char bHubContrCurrent;
-	unsigned char data[0];
-};
+	uint8_t bDescLength;
+	uint8_t bDescriptorType;
+	uint8_t bNbrPorts;
+	uint16_t wHubCharacteristics;
+	uint8_t bPwrOn2PwrGood;
+	uint8_t bHubContrCurrent;
+} __attribute__((packed));
 
 struct hub_info {
 	int busnum;
 	int devnum;
-	struct usb_device *dev;
+	libusb_device *dev;
 	int nport;
 	int indicator_support;
 };
@@ -105,18 +104,21 @@ static void exit_with_usage(const char *progname)
 	exit(1);
 }
 
-static void hub_port_status(usb_dev_handle *uh, int nport)
+static void hub_port_status(libusb_device_handle *dev, int nport)
 {
-	char buf[USB_STATUS_SIZE];
+	uint8_t buf[USB_STATUS_SIZE];
 	int ret;
 	int i;
+
+	if (!dev)
+		return;
 
 	printf(" Hub Port Status:\n");
 	for (i = 0; i < nport; i++) {
 
-		ret = usb_control_msg(uh,
-			USB_ENDPOINT_IN | USB_TYPE_CLASS | USB_RECIP_OTHER,
-			USB_REQ_GET_STATUS, 0, i + 1, buf, USB_STATUS_SIZE,
+		ret = libusb_control_transfer(dev,
+			LIBUSB_ENDPOINT_IN | USB_RT_PORT,
+			LIBUSB_REQUEST_GET_STATUS, 0, i + 1, buf, USB_STATUS_SIZE,
 			CTRL_TIMEOUT);
 		if (ret < 0) {
 			fprintf(stderr,
@@ -149,94 +151,134 @@ static void hub_port_status(usb_dev_handle *uh, int nport)
 	}
 }
 
-static int usb_find_hubs(int listing, int verbose, int busnum, int devnum)
+static int usb_find_hubs(int print)
 {
-	struct usb_hub_descriptor *uhd = NULL;
-	struct usb_bus *busses;
-	struct usb_device *dev;
-	struct usb_bus *bus;
-	usb_dev_handle *uh;
-	char buf[1024];
-	int print = 0;
-	int nport;
+	struct libusb_device_descriptor desc;
+	struct usb_hub_descriptor hub_desc;
+	libusb_device_handle *dev = NULL;
+	libusb_device **devlist;
+	libusb_device *hub;
+	uint8_t buf[sizeof(hub_desc)];
+	uint8_t id_node;
+	uint8_t id_bus;
+	int ret;
 	int len;
+	int num;
+	int i;
 
 	num_hubs = 0;
-	busses = usb_get_busses();
-	if (busses == NULL) {
-		perror("failed to access USB");
-		return -1;
+
+	num = libusb_get_device_list(NULL, &devlist);
+	if (num < 0) {
+		fprintf(stderr, "Failed to get USB device list: %s\n",
+			libusb_strerror(num));
+		return -ENODEV;
 	}
 
-	for (bus = busses; bus; bus = bus->next) {
+	if (print)
+		printf("%d USB devices found.\n", num);
 
-		for (dev = bus->devices; dev; dev = dev->next) {
-			uhd = (struct usb_hub_descriptor *)buf;
-
-			if (dev->descriptor.bDeviceClass != USB_CLASS_HUB &&
-					dev->descriptor.bDeviceClass != USB_CLASS_VENDOR_SPEC)
-				continue;
-
-			if (listing || (verbose && (atoi(bus->dirname) == busnum &&
-					dev->devnum == devnum))) {
-				print = 1;
-			}
-
-			uh = usb_open(dev);
-
-			if (uh == NULL)
-				continue;
-
-			len = usb_control_msg(uh,
-				USB_DIR_IN | USB_RT_HUB, USB_REQ_GET_DESCRIPTOR,
-				USB_DT_HUB << 8, 0, buf, sizeof(buf), CTRL_TIMEOUT);
-			if (len <= sizeof(struct usb_hub_descriptor)) {
-				perror("Can't get hub descriptor");
-				usb_close(uh);
-				continue;
-			}
-
-			if (!(uhd->wHubCharacteristics[0] & HUB_CHAR_PORTIND) &&
-					(uhd->wHubCharacteristics[0] & HUB_CHAR_LPSM) >= 2)
-				continue;
-
-			if (print) {
-				printf("Hub #%d at %s:%03d\n", num_hubs,
-					bus->dirname, dev->devnum);
-
-				switch ((uhd->wHubCharacteristics[0] & HUB_CHAR_LPSM)) {
-				case 0:
-					fprintf(stderr, " INFO: ganged switching.\n");
-					break;
-				case 1:
-					fprintf(stderr, " INFO: individual power switching.\n");
-					break;
-				case 2:
-				case 3:
-					fprintf(stderr, " WARN: No power switching.\n");
-					break;
-				}
-
-				if (!(uhd->wHubCharacteristics[0] & HUB_CHAR_PORTIND))
-					fprintf(stderr, " WARN: Port indicators are NOT supported.\n");
-			}
-
-			nport = buf[2];
-			hubs[num_hubs].busnum = atoi(bus->dirname);
-			hubs[num_hubs].devnum = dev->devnum;
-			hubs[num_hubs].dev = dev;
-			hubs[num_hubs].indicator_support =
-				(uhd->wHubCharacteristics[0] & HUB_CHAR_PORTIND) ? 1 : 0;
-			hubs[num_hubs].nport = nport;
-
-			num_hubs++;
-
-			if (verbose)
-				hub_port_status(uh, nport);
-
-			usb_close(uh);
+	for (i = 0; i < num; i++) {
+		if (dev) {
+			libusb_close(dev);
+			dev = NULL;
 		}
+
+		hub = devlist[i];
+		id_bus = libusb_get_bus_number(hub);
+		id_node = libusb_get_device_address(hub);
+		memset(&desc, 0, sizeof(desc));
+
+		ret = libusb_get_device_descriptor(hub, &desc);
+		if (ret && print) {
+			fprintf(stderr, "Device %03d:%03d: No descriptor: %s\n",
+				id_bus, id_node, libusb_strerror(ret));
+		}
+
+		ret = libusb_open(hub, &dev);
+		if (ret) {
+			if (print) {
+				fprintf(stderr, "Device %03d:%03d (%04x:%04x): "
+					"Failed to open: %s\n",
+					id_bus, id_node, desc.idVendor,
+					desc.idProduct, libusb_strerror(ret));
+			}
+			continue;
+		}
+
+		len = libusb_control_transfer(dev,
+			LIBUSB_ENDPOINT_IN | USB_RT_HUB,
+			LIBUSB_REQUEST_GET_DESCRIPTOR,
+			LIBUSB_DT_HUB << 8, 0, buf, sizeof(buf), CTRL_TIMEOUT);
+
+		if (len <= 0) {
+			if (print) {
+				fprintf(stderr, "Device %03d:%03d (%04x:%04x): "
+					"Failed to get descriptor: %s\n",
+					id_bus, id_node, desc.idVendor,
+					desc.idProduct, len < 0 ?
+						libusb_strerror(len) :
+						"None found.");
+			}
+			continue;
+		}
+
+		memset(&hub_desc, 0, sizeof(hub_desc));
+		memcpy(&hub_desc, buf, len);
+
+		if (!(hub_desc.wHubCharacteristics & HUB_CHAR_PORTIND) &&
+				(hub_desc.wHubCharacteristics & HUB_CHAR_LPSM) >= 2) {
+			if (print) {
+				fprintf(stderr, "Device %03d:%03d (%04x:%04x): "
+					"Neither power switching nor "
+					"indicators supported.\n",
+					id_bus, id_node, desc.idVendor,
+					desc.idProduct);
+			}
+			continue;
+		}
+
+		if (print) {
+			printf("Device %03d:%03d (%04x:%04x): Supported!\n",
+				id_bus, id_node, desc.idVendor, desc.idProduct);
+		}
+
+		if (print) {
+			switch ((hub_desc.wHubCharacteristics & HUB_CHAR_LPSM)) {
+			case 0:
+				fprintf(stderr, "  INFO: ganged switching.\n");
+				break;
+			case 1:
+				fprintf(stderr, "  INFO: individual power switching.\n");
+				break;
+			case 2:
+			case 3:
+				fprintf(stderr, "  WARN: No power switching.\n");
+				break;
+			}
+
+			if (!(hub_desc.wHubCharacteristics & HUB_CHAR_PORTIND))
+				fprintf(stderr, "  WARN: Port indicators are NOT supported.\n");
+		}
+
+		hubs[num_hubs].busnum = id_bus;
+		hubs[num_hubs].devnum = id_node;
+		hubs[num_hubs].dev = libusb_ref_device(hub);
+		hubs[num_hubs].indicator_support = (buf[4] & HUB_CHAR_PORTIND) ? 1 : 0;
+		hubs[num_hubs].nport = buf[2];
+		num_hubs++;
+
+		if (print)
+			hub_port_status(dev, buf[2]);
+
+		libusb_close(dev);
+		dev = NULL;
 	}
+
+	libusb_free_device_list(devlist, 1);
+
+	if (print)
+		printf("%d supported hubs found.\n", num_hubs);
 
 	return num_hubs;
 }
@@ -252,16 +294,24 @@ int get_hub(int busnum, int devnum)
 	return -1;
 }
 
+void clean_hub_info(struct hub_info *hubs, int len)
+{
+	int i;
+
+	for (i = 0; i < len; i++)
+		libusb_unref_device(hubs[i].dev);
+}
+
 int main(int argc, char **argv)
 {
 	const char short_options[] = "b:d:e:f:hl:P:p:qr:vw:";
 	int feature = USB_PORT_FEAT_INDICATOR;
-	int request = USB_REQ_SET_FEATURE;
+	int request = LIBUSB_REQUEST_SET_FEATURE;
 	char *default_file = "output.iic";
+	libusb_device_handle *dev = NULL;
 	int cmd = COMMAND_SET_NONE;
 	unsigned long argument = 0;
 	uint8_t *cmp_buffer = NULL;
-	usb_dev_handle *uh = NULL;
 	uint16_t erase_size = 0;
 	uint16_t write_size = 0;
 	uint16_t read_size = 0;
@@ -434,25 +484,32 @@ int main(int argc, char **argv)
 	if (cmd == COMMAND_SET_NONE)
 		cmd = COMMAND_SET_POWER;
 
-	usb_init();
-	usb_find_busses();
-	usb_find_devices();
+	libusb_init(NULL);
 
-	if (usb_find_hubs(listing, verbose, busnum, devnum) <= 0) {
+	if (usb_find_hubs(listing | verbose) <= 0) {
 		fprintf(stderr, "No hubs found.\n");
-		exit(1);
+		result = 1;
+		goto cleanup;
 	}
 
-	if (listing)
-		exit(0);
+	if (listing) {
+		result = 0;
+		goto cleanup;
+	}
 
 	hub = get_hub(busnum, devnum);
-	if (hub >= 0 && hub < num_hubs)
-		uh = usb_open(hubs[hub].dev);
+	if (hub >= 0) {
+		ret_val = libusb_open(hubs[hub].dev, &dev);
+		if (ret_val) {
+			fprintf(stderr, "Failed to open device: %s\n",
+				libusb_strerror(ret_val));
+		}
+	}
 
-	if (uh == NULL) {
+	if (dev == NULL) {
 		fprintf(stderr, "Device not found.\n");
-		exit(1);
+		result = 1;
+		goto cleanup;
 	}
 
 	switch (cmd) {
@@ -465,9 +522,9 @@ int main(int argc, char **argv)
 			goto cleanup;
 		}
 
-		ret_val = usb_eeprom_read(uh, buffer, read_size);
+		ret_val = usb_eeprom_read(dev, buffer, read_size);
 		if (ret_val != read_size) {
-			fprintf(stderr, "EEPROM read failed.\n");
+			fprintf(stderr, "EEPROM read failed: %d\n", ret_val);
 			result = 1;
 			goto cleanup;
 		}
@@ -511,7 +568,7 @@ int main(int argc, char **argv)
 		/* switch write size to actually read number of bytes from file */
 		write_size = ret_val;
 
-		ret_val = usb_eeprom_write(uh, buffer, write_size);
+		ret_val = usb_eeprom_write(dev, buffer, write_size);
 		if (ret_val != write_size) {
 			fprintf(stderr, "EEPROM write failed.\n");
 			result = 1;
@@ -525,7 +582,7 @@ int main(int argc, char **argv)
 			result = 1;
 			goto cleanup;
 		}
-		ret_val = usb_eeprom_read(uh, cmp_buffer, write_size);
+		ret_val = usb_eeprom_read(dev, cmp_buffer, write_size);
 		if (ret_val != write_size) {
 			fprintf(stderr, "EEPROM read failed.\n");
 			result = 1;
@@ -543,14 +600,14 @@ int main(int argc, char **argv)
 
 		break;
 	case COMMAND_CLR_EEPROM:
-		ret_val = usb_eeprom_erase(uh, erase_size);
+		ret_val = usb_eeprom_erase(dev, erase_size);
 
 		if (ret_val == erase_size)
 			break;
 
 		if (ret_val < 0) {
 			fprintf(stderr, "EEPROM erase failed with error code: %s\n",
-					usb_strerror());
+					libusb_strerror(ret_val));
 		} else {
 			fprintf(stderr, "EEPROM erase failed, %i bytes erased instead of %i bytes\n",
 					ret_val, erase_size);
@@ -560,31 +617,31 @@ int main(int argc, char **argv)
 		goto cleanup;
 	case COMMAND_SET_POWER:
 		if (argument)
-			request = USB_REQ_SET_FEATURE;
+			request = LIBUSB_REQUEST_SET_FEATURE;
 		else
-			request = USB_REQ_CLEAR_FEATURE;
+			request = LIBUSB_REQUEST_CLEAR_FEATURE;
 		feature = USB_PORT_FEAT_POWER;
 		index = port;
-		len = usb_control_msg(uh, USB_RT_PORT, request, feature, index,
+		len = libusb_control_transfer(dev, USB_RT_PORT, request, feature, index,
 				NULL, 0, CTRL_TIMEOUT);
 		if (len < 0) {
-			fprintf(stderr, "usb_control_msg failed, error code: %s.\n",
-					usb_strerror());
+			fprintf(stderr, "libusb_control_transfer failed, error code: %s.\n",
+					libusb_strerror(len));
 			result = 1;
 			goto cleanup;
 		}
 		break;
 	default:
-		request = USB_REQ_SET_FEATURE;
+		request = LIBUSB_REQUEST_SET_FEATURE;
 		feature = USB_PORT_FEAT_INDICATOR;
 		index = (argument << 8) | port;
 		if (!quiet)
 			printf("port %02x value = %02lx\n", port, argument);
-		len = usb_control_msg(uh, USB_RT_PORT, request, feature, index,
+		len = libusb_control_transfer(dev, USB_RT_PORT, request, feature, index,
 				NULL, 0, CTRL_TIMEOUT);
 		if (len < 0) {
-			fprintf(stderr, "usb_control_msg failed, error code: %s.\n",
-					usb_strerror());
+			fprintf(stderr, "libusb_control_transfer failed, error code: %s.\n",
+					libusb_strerror(len));
 			result = 1;
 			goto cleanup;
 		}
@@ -596,11 +653,15 @@ int main(int argc, char **argv)
 	}
 
 cleanup:
+	if (verbose && dev && !(cmd & (COMMAND_CLR_EEPROM | COMMAND_GET_EEPROM | COMMAND_SET_EEPROM)))
+		hub_port_status(dev, hubs[hub].nport);
 
-	if (verbose && !(cmd & (COMMAND_CLR_EEPROM | COMMAND_GET_EEPROM | COMMAND_SET_EEPROM)))
-		hub_port_status(uh, hubs[hub].nport);
+	if (dev)
+		libusb_close(dev);
 
-	usb_close(uh);
+	clean_hub_info(hubs, num_hubs);
+
+	libusb_exit(NULL);
 
 	if (buffer)
 		free(buffer);

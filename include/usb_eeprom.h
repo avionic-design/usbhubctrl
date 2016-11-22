@@ -11,7 +11,7 @@
 #ifndef USB_EEPROM_H
 #define USB_EEPROM_H
 
-#include <usb.h>
+#include <libusb.h>
 
 /** USB control message Requesttype for EEPROM read */
 #define USB_REQ_TYPE_READ_EEPROM	0xC0
@@ -34,12 +34,12 @@
  * Erase the data contained in the EEPROM of the USB hub.
  * This means putting 0xFF in every byte.
  *
- * @param uh pointer to the usb_dev_handle to use
+ * @param dev pointer to the libusb_device_handle to use
  * @param size number of Bytes to erase
  * @return number of actually erased bytes on success
  * @return -errno on failure
  */
-int usb_eeprom_erase(usb_dev_handle *uh, size_t size);
+int usb_eeprom_erase(libusb_device_handle *dev, size_t size);
 
 /**
  * @brief Read EEPROM data to buffer
@@ -47,27 +47,27 @@ int usb_eeprom_erase(usb_dev_handle *uh, size_t size);
  * Read the data from the EEPROM of the USB hub.
  * The data will be written into the given buffer.
  *
- * @param uh pointer to the usb_dev_handle to use
+ * @param dev pointer to the libusb_device_handle to use
  * @param buffer pointer where the data will be stored
  * @param size number of Bytes to read
  * @pre the buffer have to be allocated
  * @return number of actually read bytes on success
  * @return -errno on failure
  */
-int usb_eeprom_read(usb_dev_handle *uh, uint8_t *buffer, size_t size);
+int usb_eeprom_read(libusb_device_handle *dev, uint8_t *buffer, size_t size);
 
 /**
  * @brief Write buffer EEPROM data
  *
  * Write given data from pointer to EEPROM of the USB hub.
  *
- * @param uh pointer to the usb_dev_handle to use
+ * @param dev pointer to the libusb_device_handle to use
  * @param buffer pointer where the data will be stored
  * @param size number of Bytes to write
  * @pre the buffer have to be allocated
  * @return number of actually written bytes on success
  * @return -errno on failure
  */
-int usb_eeprom_write(usb_dev_handle *uh, uint8_t *buffer, size_t size);
+int usb_eeprom_write(libusb_device_handle *dev, uint8_t *buffer, size_t size);
 
 #endif /* USB_EEPROM_H */

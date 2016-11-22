@@ -19,8 +19,8 @@ AC_PROG_AWK
 DX_INIT_DOXYGEN([$PACKAGE_NAME], [doc/doxyfile], [doc/doxygen])
 AM_CONDITIONAL([HAVE_DOXYGEN],[test -n "${DX_DOXYGEN}"])
 
-PKG_CHECK_MODULES(LIBUSB, libusb)
-AC_CHECK_HEADER([usb.h])
+PKG_CHECK_MODULES(LIBUSB, libusb-1.0)
+AC_CHECK_HEADER([libusb-1.0/libusb.h])
 
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4],
 		[have_check=yes], [have_check=no])
