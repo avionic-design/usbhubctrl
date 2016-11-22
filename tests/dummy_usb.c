@@ -14,11 +14,11 @@
 /** USB control message Request for write */
 #define USB_REQ_WRITE			0x01
 
-usb_dev_handle *usb_dev_handle_create()
+libusb_device_handle *libusb_device_handle_create()
 {
-	usb_dev_handle *uh = NULL;
+	libusb_device_handle *uh = NULL;
 
-	uh = malloc(sizeof(usb_dev_handle));
+	uh = malloc(sizeof(libusb_device_handle));
 	if (!uh)
 		return NULL;
 
@@ -31,7 +31,7 @@ usb_dev_handle *usb_dev_handle_create()
 	return uh;
 }
 
-int usb_dev_handle_free(usb_dev_handle **dev)
+int libusb_device_handle_free(libusb_device_handle **dev)
 {
 	if (!(*dev) || !((*dev)->msg))
 		return -EINVAL;
@@ -49,8 +49,8 @@ int usb_dev_handle_free(usb_dev_handle **dev)
 	return 0;
 }
 
-int usb_control_msg(usb_dev_handle *dev, int requesttype, int request,
-		int value, int index, char *bytes, int size, int timeout)
+int libusb_control_transfer(libusb_device_handle *dev, int requesttype,
+	int request, int value, int index, char *bytes, int size, int timeout)
 {
 	if (!dev || !dev->msg || ! bytes || !size)
 		return -EINVAL;
@@ -77,7 +77,7 @@ int usb_control_msg(usb_dev_handle *dev, int requesttype, int request,
 	return size;
 }
 
-struct usb_msg *get_usb_msg(usb_dev_handle *dev)
+struct usb_msg *get_usb_msg(libusb_device_handle *dev)
 {
 	if (!dev)
 		return NULL;

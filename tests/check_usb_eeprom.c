@@ -3,10 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "usb_eeprom.h"
 #include "dummy_usb.h"
+#include "usb_eeprom.h"
 
-usb_dev_handle *uh = NULL;
+libusb_device_handle *uh = NULL;
 uint8_t eeprom_buffer[] = {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 	0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
@@ -19,32 +19,32 @@ uint8_t eeprom_buffer[] = {
 
 void setup_device_handle()
 {
-	uh = usb_dev_handle_create();
+	uh = libusb_device_handle_create();
 	ck_assert_ptr_ne(uh, NULL);
 }
 
 void setup_device_handle_with_malloc()
 {
-	uh = usb_dev_handle_create();
+	uh = libusb_device_handle_create();
 	ck_assert_ptr_ne(uh, NULL);
 }
 
 void setup_device_handle_with_malloc_init()
 {
-	uh = usb_dev_handle_create();
+	uh = libusb_device_handle_create();
 	ck_assert_ptr_ne(uh, NULL);
 }
 
 void teardown_device_handle()
 {
 	if (uh)
-		usb_dev_handle_free(&uh);
+		libusb_device_handle_free(&uh);
 }
 
 void teardown_device_handle_with_buffer()
 {
 	if (uh)
-		usb_dev_handle_free(&uh);
+		libusb_device_handle_free(&uh);
 }
 
 START_TEST(test_eeprom_erase_boundaries)
@@ -59,7 +59,7 @@ START_TEST(test_eeprom_erase_boundaries)
 	ret_val = usb_eeprom_erase(uh, 0);
 	ck_assert_int_eq(ret_val, -EINVAL);
 
-	/* check for usb_dev_handle uninitialised */
+	/* check for libusb_device_handle uninitialised */
 	ret_val = usb_eeprom_erase(NULL, sizeof(eeprom_buffer));
 	ck_assert_int_eq(ret_val, -EINVAL);
 }

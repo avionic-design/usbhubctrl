@@ -3,7 +3,7 @@
  * @author Meike Vocke <meike.vocke\@avionic-design.de>
  * @date 2016
  *
- * @brief Provide usb.h functions and structs for usb_eeprom functions testing
+ * @brief libusb.h mocks for usb_eeprom functions testing
  *
  * @copyright GPLv3
  */
@@ -12,6 +12,8 @@
 #define DUMMY_USB_H
 
 #include <stdint.h>
+
+#define LIBUSB_H	/**< Prevent libusb.h inclusion by defining its guard */
 
 /** struct for passed parameters of usb_control_msg */
 struct usb_msg {
@@ -32,30 +34,30 @@ struct usb_msg {
 };
 
 /** struct as for usb device */
-struct usb_dev_handle {
+struct libusb_device_handle {
 	/** pointer to usb control message */
 	struct usb_msg *msg;
 };
 
-/** typedef for use of usb_dev_handle as in usb.h */
-typedef struct usb_dev_handle usb_dev_handle;
+/** typedef for use of libusb_device_handle as in libusb.h */
+typedef struct libusb_device_handle libusb_device_handle;
 
 /**
- * @brief Create a usb_dev_handle struct
+ * @brief Create a libusb_device_handle struct
  *
- * @return pointer to created usb_dev_handle on success
+ * @return pointer to created libusb_device_handle on success
  * @return null pointer on failure
  */
-usb_dev_handle *usb_dev_handle_create();
+libusb_device_handle *libusb_device_handle_create();
 
 /**
- * @brief Free a usb_dev_handle struct
+ * @brief Free a libusb_device_handle struct
  *
- * @param dev pointer to usb_dev_handle
+ * @param dev pointer to libusb_device_handle
  * @return 0 on success
  * @return -errno on failure
  */
-int usb_dev_handle_free(usb_dev_handle **dev);
+int libusb_device_handle_free(libusb_device_handle **dev);
 
 /**
  * @brief Read data from file into a buffer
@@ -75,16 +77,16 @@ int usb_dev_handle_free(usb_dev_handle **dev);
  * @return number of tranferred bytes on success
  * @return -errno on failure
  */
-int usb_control_msg(usb_dev_handle *dev, int requesttype, int request,
-		int value, int index, char *bytes, int size, int timeout);
+int libusb_control_transfer(libusb_device_handle *dev, int requesttype,
+	int request, int value, int index, char *bytes, int size, int timeout);
 
 /**
- * @brief Get usb control message from usb_device_handle
+ * @brief Get usb control message from libusb_device_handle
  *
  * @param dev pointer to the usb device
  * @return usb_msg on success
  * @return null pointer when dev is not defined
  */
-struct usb_msg *get_usb_msg(usb_dev_handle *dev);
+struct usb_msg *get_usb_msg(libusb_device_handle *dev);
 
 #endif /* DUMMY_USB_H */

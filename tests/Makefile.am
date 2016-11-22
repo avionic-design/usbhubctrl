@@ -15,7 +15,8 @@ check_hub_ctrl_CFLAGS = \
 	-I$(top_srcdir)/tests \
 	-I$(top_srcdir)/include \
 	-DRUN_CHECK \
-	$(CHECK_CFLAGS)
+	$(CHECK_CFLAGS) \
+	@LIBUSB_CFLAGS@
 
 check_hub_ctrl_LDADD = \
 	$(top_build_prefix)src/lib_eeprom_file_utils.a \
