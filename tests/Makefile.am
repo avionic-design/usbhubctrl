@@ -1,5 +1,14 @@
 TESTS = check_hub_ctrl
 
+check_LIBRARIES = libusb_mock.a
+
+libusb_mock_a_CFLAGS = \
+	-I$(top_srcdir)/tests \
+	@LIBUSB_CFLAGS@
+
+libusb_mock_a_SOURCES = \
+	dummy_usb.c
+
 check_PROGRAMS = check_hub_ctrl
 
 check_hub_ctrl_SOURCES = \
@@ -20,6 +29,7 @@ check_hub_ctrl_CFLAGS = \
 
 check_hub_ctrl_LDADD = \
 	$(top_build_prefix)src/lib_eeprom_file_utils.a \
+	$(top_build_prefix)tests/libusb_mock.a \
 	$(CHECK_LIBS)
 
 LOG_DRIVER = env AM_TAP_AWK='$(AWK)' $(SHELL) \

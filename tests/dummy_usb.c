@@ -49,39 +49,41 @@ int libusb_device_handle_free(libusb_device_handle **dev)
 	return 0;
 }
 
-int libusb_control_transfer(libusb_device_handle *dev, int requesttype,
-	int request, int value, int index, char *bytes, int size, int timeout)
-{
-	if (!dev || !dev->msg || ! bytes || !size)
-		return -EINVAL;
-
-	if (requesttype != USB_REQ_TYPE_READ_EEPROM &&
-			requesttype != USB_REQ_TYPE_WRITE_EEPROM)
-		return -ERANGE;
-
-	if (request != USB_REQ_READ && request != USB_REQ_WRITE)
-		return -ERANGE;
-
-	dev->msg->bytes = malloc(size);
-	if (!dev->msg->bytes)
-		return -ENOMEM;
-
-	dev->msg->requesttype = requesttype;
-	dev->msg->request = request;
-	dev->msg->value = value;
-	dev->msg->index = index;
-	memcpy(dev->msg->bytes, bytes, size);
-	dev->msg->size = size;
-	dev->msg->timeout = timeout;
-
-	return size;
-}
-
 struct usb_msg *get_usb_msg(libusb_device_handle *dev)
 {
 	if (!dev)
 		return NULL;
 
 	return dev->msg;
+}
+
+/* declared in libusb.h */
+int libusb_control_transfer(libusb_device_handle *dev_handle,
+	uint8_t request_type, uint8_t bRequest, uint16_t wValue, uint16_t wIndex,
+	unsigned char *data, uint16_t wLength, unsigned int timeout)
+{
+	if (!dev_handle || !dev_handle->msg || !data || !wLength)
+		return -EINVAL;
+
+	if (request_type != USB_REQ_TYPE_READ_EEPROM &&
+			request_type != USB_REQ_TYPE_WRITE_EEPROM)
+		return -ERANGE;
+
+	if (bRequest != USB_REQ_READ && bRequest != USB_REQ_WRITE)
+		return -ERANGE;
+
+	dev_handle->msg->bytes = malloc(wLength);
+	if (!dev_handle->msg->bytes)
+		return -ENOMEM;
+
+	dev_handle->msg->requesttype = request_type;
+	dev_handle->msg->request = bRequest;
+	dev_handle->msg->value = wValue;
+	dev_handle->msg->index = wIndex;
+	memcpy(dev_handle->msg->bytes, data, wLength);
+	dev_handle->msg->size = wLength;
+	dev_handle->msg->timeout = timeout;
+
+	return wLength;
 }
 

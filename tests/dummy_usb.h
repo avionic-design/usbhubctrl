@@ -12,8 +12,7 @@
 #define DUMMY_USB_H
 
 #include <stdint.h>
-
-#define LIBUSB_H	/**< Prevent libusb.h inclusion by defining its guard */
+#include <libusb.h>
 
 /** struct for passed parameters of usb_control_msg */
 struct usb_msg {
@@ -58,27 +57,6 @@ libusb_device_handle *libusb_device_handle_create();
  * @return -errno on failure
  */
 int libusb_device_handle_free(libusb_device_handle **dev);
-
-/**
- * @brief Read data from file into a buffer
- *
- * This function sends a simple control message to a specified endpoint and
- * waits for the message to complete, or timeout.
- *
- * @param dev pointer to the usb device to send the message to
- * @param request USB message request value
- * @param requesttype USB message request type value
- * @param value USB message value
- * @param index USB message index value
- * @param bytes pointer to the data to send
- * @param size length in bytes of the data to send
- * @param timeout time in msecs to wait for the message to complete before
- * timing out (set to 0 to wait infinitely)
- * @return number of tranferred bytes on success
- * @return -errno on failure
- */
-int libusb_control_transfer(libusb_device_handle *dev, int requesttype,
-	int request, int value, int index, char *bytes, int size, int timeout);
 
 /**
  * @brief Get usb control message from libusb_device_handle
