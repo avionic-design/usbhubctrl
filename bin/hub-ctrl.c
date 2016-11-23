@@ -22,7 +22,6 @@
  */
 
 #include <errno.h>
-#include <getopt.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,6 +30,7 @@
 #include <libusb.h>
 
 #include "file_io.h"
+#include "options.h"
 #include "usb_eeprom.h"
 
 #define USB_RT_HUB			(LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_DEVICE)
@@ -38,12 +38,6 @@
 #define USB_PORT_FEAT_POWER		8
 #define USB_PORT_FEAT_INDICATOR		22
 
-#define COMMAND_SET_NONE		0
-#define COMMAND_SET_LED			(1 << 0)
-#define COMMAND_SET_POWER		(1 << 1)
-#define COMMAND_GET_EEPROM		(1 << 2)
-#define COMMAND_SET_EEPROM		(1 << 3)
-#define COMMAND_CLR_EEPROM		(1 << 4)
 #define HUB_LED_GREEN			2
 
 #define HUB_CHAR_LPSM			0x0003
@@ -74,36 +68,6 @@ struct hub_info {
 static struct hub_info hubs[MAX_HUBS];
 /** Number of hubs supporting power switching */
 static int num_hubs;
-
-static void usage(const char *progname)
-{
-	fprintf(stderr,
-		"Usage: %s [{-b BUSNUM -d DEVNUM}] [-v] [-l]\n"
-		"          [-P PORT] [{-p [VALUE]|-i [VALUE]}]\n\n"
-		"or:    %s [{-b BUSNUM -d DEVNUM}] [-v]\n"
-		"          [{-w BYTES -f filename} | {-r BYTES -f filename} | -e BYTES]\n\n"
-		"Options:\n"
-		"-b     <bus-number>    USB bus number\n"
-		"-d     <dev-number>    USB device number\n"
-		"-e     <N>             Erase N bytes in EEPROM\n"
-		"-f     <filename>      filename, \"-\" for stdin/stdout, if not used a file \"output.iic\" was created\n"
-		"-h                     help\n"
-		"-i     <indicator>     Set USB hub indicators to specified value[0, 1, 2, 3]\n"
-		"-l                     Scan for and list supported hubs\n"
-		"-P     <port-ID>       ID of USB hub port\n"
-		"-p     <enable>        Value enable or disable port [0, 1]\n"
-		"-q     <quiet>         no output at all\n"
-		"-r     <N>             Read N bytes from EEPROM\n"
-		"-v                     verbose\n"
-		"-w     <N>             Write N bytes to EEPROM\n",
-		progname, progname);
-}
-
-static void exit_with_usage(const char *progname)
-{
-	usage(progname);
-	exit(1);
-}
 
 static void hub_port_status(libusb_device_handle *dev, int nport)
 {
@@ -305,208 +269,65 @@ void clean_hub_info(struct hub_info *hubs, int len)
 
 int main(int argc, char **argv)
 {
-	const char short_options[] = "b:d:e:f:hi:lP:p:qr:vw:";
 	int feature = USB_PORT_FEAT_INDICATOR;
 	int request = LIBUSB_REQUEST_SET_FEATURE;
 	char *default_file = "output.iic";
 	libusb_device_handle *dev = NULL;
-	int cmd = COMMAND_SET_NONE;
-	unsigned long argument = 0;
+	struct hub_options opts = {
+		.cmd = COMMAND_SET_NONE,
+		.filename = NULL,
+		.erase_size = 0,
+		.write_size = 0,
+		.read_size = 0,
+		.busnum = 0,
+		.devnum = 0,
+		.index = 0,
+		.power = 0,
+		.port = 1,
+		.verbose = 0,
+		.listing = 0,
+		.quiet = 0,
+	};
 	uint8_t *cmp_buffer = NULL;
-	uint16_t erase_size = 0;
-	uint16_t write_size = 0;
-	uint16_t read_size = 0;
 	uint8_t *buffer = NULL;
-	char *filename = NULL;
-	int listing = 0;
-	int verbose = 0;
 	int ret_val = 0;
-	int busnum = 0;
-	int devnum = 0;
 	int result = 0;
 	int index = 0;
-	int quiet = 0;
-	int port = 1;
 	int len = 0;
 	int hub = 0;
-	int option;
 	int i;
 
-	if (argc == 1) {
-		usage(argv[0]);
-		exit(0);
-	}
-
-	for (;;) {
-		option = getopt(argc, argv, short_options);
-		if (option == -1)
-			break;
-
-		switch (option) {
-		case 'h':
-			usage(argv[0]);
-			exit(0);
-
-		case 'l':
-			listing = 1;
-			break;
-
-		case 'b':
-			errno = 0;
-			argument = strtoul(optarg, NULL, 10);
-			if (errno != 0 || argument == 0) {
-				fprintf(stderr, "Command line argument for -b is out of range.\n\n");
-				exit(1);
-			}
-			busnum = argument;
-			break;
-
-		case 'd':
-			errno = 0;
-			argument = strtoul(optarg, NULL, 10);
-			if (errno != 0 || argument == 0) {
-				fprintf(stderr, "Command line argument for -d is out of range.\n\n");
-				exit(1);
-			}
-			devnum = argument;
-			break;
-
-		case 'P':
-			if (cmd != COMMAND_SET_NONE && cmd != COMMAND_SET_POWER)
-				exit_with_usage(argv[0]);
-			cmd = COMMAND_SET_POWER;
-			errno = 0;
-			argument = strtoul(optarg, NULL, 10);
-			if (errno != 0 || argument == 0) {
-				fprintf(stderr, "Command line argument for -P is out of range.\n\n");
-				exit(1);
-			}
-			port = argument;
-			break;
-
-		case 'i':
-			if (cmd != COMMAND_SET_NONE)
-				exit_with_usage(argv[0]);
-			errno = 0;
-			argument = strtoul(optarg, NULL, 10);
-			if (errno != 0 || argument > 3) {
-				fprintf(stderr, "Command line argument for -l is out of range.\n\n");
-				usage(argv[0]);
-				exit(1);
-			}
-			cmd = COMMAND_SET_LED;
-			break;
-
-		case 'p':
-			if (cmd != COMMAND_SET_NONE && cmd != COMMAND_SET_POWER)
-				exit_with_usage(argv[0]);
-			cmd = COMMAND_SET_POWER;
-			errno = 0;
-			argument = strtoul(optarg, NULL, 10);
-			if (errno != 0 || argument > 1) {
-				fprintf(stderr, "Command line argument for -p is out of range.\n\n");
-				usage(argv[0]);
-				exit(1);
-			}
-			break;
-
-		case 'v':
-			verbose = 1;
-			if (argc == 2) {
-				usage(argv[0]);
-				exit(1);
-			}
-			break;
-
-		case 'q':
-			quiet = 1;
-			break;
-
-		case 'r':
-			if (cmd != COMMAND_SET_NONE)
-				exit_with_usage(argv[0]);
-			cmd = COMMAND_GET_EEPROM;
-			errno = 0;
-			argument = strtoul(optarg, NULL, 10);
-			if (errno != 0) {
-				fprintf(stderr, "Command line argument for -r is out of range.\n\n");
-				usage(argv[0]);
-				exit(1);
-			} else if (argument > MAX_EEPROM_SIZE || !argument) {
-				fprintf(stderr, "Command line argument for -r is invalid.\n\n");
-				usage(argv[0]);
-				exit(1);
-			}
-			read_size = argument;
-			break;
-
-		case 'w':
-			if (cmd != COMMAND_SET_NONE)
-				exit_with_usage(argv[0]);
-			cmd = COMMAND_SET_EEPROM;
-			errno = 0;
-			argument = strtoul(optarg, NULL, 10);
-			if (errno != 0) {
-				fprintf(stderr, "Command line argument for -w is out of range.\n\n");
-				usage(argv[0]);
-				exit(1);
-			} else if (argument > MAX_EEPROM_SIZE || !argument) {
-				fprintf(stderr, "Command line argument for -w is invalid.\n\n");
-				usage(argv[0]);
-				exit(1);
-			}
-			write_size = argument;
-			break;
-
-		case 'e':
-			if (cmd != COMMAND_SET_NONE)
-				exit_with_usage(argv[0]);
-			cmd = COMMAND_CLR_EEPROM;
-			errno = 0;
-			argument = strtoul(optarg, NULL, 10);
-			if (errno != 0) {
-				fprintf(stderr, "Command line argument for -e is out of range.\n\n");
-				usage(argv[0]);
-				exit(1);
-			} else if (argument > MAX_EEPROM_SIZE) {
-				fprintf(stderr, "Command line argument for -e is invalid.\n\n");
-				usage(argv[0]);
-				exit(1);
-			}
-			erase_size = argument;
-			break;
-
-		case 'f':
-			filename = optarg;
-			break;
-
-		default:
-			exit_with_usage(argv[0]);
-		}
+	ret_val = options_scan(&opts, argc, argv);
+	if (ret_val <= 0) {
+		options_help(argv[0]);
+		exit(ret_val);
 	}
 
 	/* BUS is specified, but DEV isn't, or ... */
-	if ((busnum > 0 && devnum <= 0) || (busnum <= 0 && devnum > 0))
-		exit_with_usage(argv[0]);
+	if ((opts.busnum > 0 && opts.devnum <= 0) ||
+			(opts.busnum <= 0 && opts.devnum > 0)) {
+		options_help(argv[0]);
+		exit(ret_val);
+	}
 
 	/* Default is POWER */
-	if (cmd == COMMAND_SET_NONE)
-		cmd = COMMAND_SET_POWER;
+	if (opts.cmd == COMMAND_SET_NONE)
+		opts.cmd = COMMAND_SET_POWER;
 
 	libusb_init(NULL);
 
-	if (usb_find_hubs(listing * (1 + verbose)) <= 0) {
+	if (usb_find_hubs(opts.listing * (1 + opts.verbose)) <= 0) {
 		fprintf(stderr, "No hubs found.\n");
 		result = 1;
 		goto cleanup;
 	}
 
-	if (listing) {
+	if (opts.listing) {
 		result = 0;
 		goto cleanup;
 	}
 
-	hub = get_hub(busnum, devnum);
+	hub = get_hub(opts.busnum, opts.devnum);
 	if (hub >= 0) {
 		ret_val = libusb_open(hubs[hub].dev, &dev);
 		if (ret_val) {
@@ -521,9 +342,9 @@ int main(int argc, char **argv)
 		goto cleanup;
 	}
 
-	switch (cmd) {
+	switch (opts.cmd) {
 	case COMMAND_GET_EEPROM:
-		buffer = malloc(read_size);
+		buffer = malloc(opts.read_size);
 		if (!buffer) {
 			fprintf(stderr, "Malloc failed with error %s\n",
 					strerror(errno));
@@ -531,14 +352,14 @@ int main(int argc, char **argv)
 			goto cleanup;
 		}
 
-		ret_val = usb_eeprom_read(dev, buffer, read_size);
-		if (ret_val != read_size) {
+		ret_val = usb_eeprom_read(dev, buffer, opts.read_size);
+		if (ret_val != opts.read_size) {
 			fprintf(stderr, "EEPROM read failed: %d\n", ret_val);
 			result = 1;
 			goto cleanup;
 		}
 
-		if (verbose) {
+		if (opts.verbose) {
 			for (i = 0; i < ret_val; i++) {
 				if (!(i % 16))
 					printf("\n %04x:   ", i);
@@ -547,27 +368,26 @@ int main(int argc, char **argv)
 			putchar('\n');
 		}
 
-		read_size = ret_val;
-		if (!filename)
-			filename = default_file;
+		if (!opts.filename)
+			opts.filename = default_file;
 
-		ret_val = file_write(filename, buffer, read_size);
-		if (ret_val != read_size) {
+		ret_val = file_write(opts.filename, buffer, opts.read_size);
+		if (ret_val != opts.read_size) {
 			fprintf(stderr, "Write file failed.\n");
 			result = 1;
 			goto cleanup;
 		}
 
-		if (strcmp(filename, "-") != 0 && verbose)
-			printf("EEPROM written to %s\n", filename);
+		if (strcmp(opts.filename, "-") != 0 && opts.verbose)
+			printf("EEPROM written to %s\n", opts.filename);
 		break;
 	case COMMAND_SET_EEPROM:
-		if (!filename) {
+		if (!opts.filename) {
 			fprintf(stderr, "No file name specified.\n");
 			result = 1;
 			goto cleanup;
 		}
-		ret_val = file_read(filename, &buffer, write_size);
+		ret_val = file_read(opts.filename, &buffer, opts.write_size);
 		if (ret_val < 0) {
 			fprintf(stderr, "Read file failed.\n");
 			result = 1;
@@ -575,43 +395,43 @@ int main(int argc, char **argv)
 		}
 
 		/* switch write size to actually read number of bytes from file */
-		write_size = ret_val;
+		len = ret_val;
 
-		ret_val = usb_eeprom_write(dev, buffer, write_size);
-		if (ret_val != write_size) {
+		ret_val = usb_eeprom_write(dev, buffer, len);
+		if (ret_val != len) {
 			fprintf(stderr, "EEPROM write failed.\n");
 			result = 1;
 			goto cleanup;
 		}
 
-		cmp_buffer = malloc(write_size);
+		cmp_buffer = malloc(len);
 		if (!cmp_buffer) {
 			fprintf(stderr, "Malloc failed with error %s\n",
 					strerror(errno));
 			result = 1;
 			goto cleanup;
 		}
-		ret_val = usb_eeprom_read(dev, cmp_buffer, write_size);
-		if (ret_val != write_size) {
+		ret_val = usb_eeprom_read(dev, cmp_buffer, len);
+		if (ret_val != len) {
 			fprintf(stderr, "EEPROM read failed.\n");
 			result = 1;
 			goto cleanup;
 		}
 
-		if (memcmp(buffer, cmp_buffer, write_size) != 0) {
+		if (memcmp(buffer, cmp_buffer, len) != 0) {
 			fprintf(stderr, "EEPROM writing failed\n");
 			result = 1;
 			goto cleanup;
-		} else if (!quiet) {
+		} else if (!opts.quiet) {
 			printf("File content successfully written %i bytes to EEPROM\n",
-					write_size);
+					len);
 		}
 
 		break;
 	case COMMAND_CLR_EEPROM:
-		ret_val = usb_eeprom_erase(dev, erase_size);
+		ret_val = usb_eeprom_erase(dev, opts.erase_size);
 
-		if (ret_val == erase_size)
+		if (ret_val == opts.erase_size)
 			break;
 
 		if (ret_val < 0) {
@@ -619,18 +439,18 @@ int main(int argc, char **argv)
 					libusb_strerror(ret_val));
 		} else {
 			fprintf(stderr, "EEPROM erase failed, %i bytes erased instead of %i bytes\n",
-					ret_val, erase_size);
+					ret_val, opts.erase_size);
 		}
 
 		result = 1;
 		goto cleanup;
 	case COMMAND_SET_POWER:
-		if (argument)
+		if (opts.power)
 			request = LIBUSB_REQUEST_SET_FEATURE;
 		else
 			request = LIBUSB_REQUEST_CLEAR_FEATURE;
 		feature = USB_PORT_FEAT_POWER;
-		index = port;
+		index = opts.port;
 		len = libusb_control_transfer(dev, USB_RT_PORT, request, feature, index,
 				NULL, 0, CTRL_TIMEOUT);
 		if (len < 0) {
@@ -643,9 +463,9 @@ int main(int argc, char **argv)
 	default:
 		request = LIBUSB_REQUEST_SET_FEATURE;
 		feature = USB_PORT_FEAT_INDICATOR;
-		index = (argument << 8) | port;
-		if (!quiet)
-			printf("port %02x value = %02lx\n", port, argument);
+		index = (opts.power << 8) | opts.port;
+		if (!opts.quiet)
+			printf("port %02x value = %02x\n", opts.port, opts.power);
 		len = libusb_control_transfer(dev, USB_RT_PORT, request, feature, index,
 				NULL, 0, CTRL_TIMEOUT);
 		if (len < 0) {
@@ -656,13 +476,13 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (verbose && !(cmd & (COMMAND_CLR_EEPROM | COMMAND_GET_EEPROM | COMMAND_SET_EEPROM))) {
+	if (opts.verbose && !(opts.cmd & (COMMAND_CLR_EEPROM | COMMAND_GET_EEPROM | COMMAND_SET_EEPROM))) {
 		printf("Sent control message (REQUEST=%d, FEATURE=%d, INDEX=%04x)\n",
 			request, feature, index);
 	}
 
 cleanup:
-	if (verbose && dev && !(cmd & (COMMAND_CLR_EEPROM | COMMAND_GET_EEPROM | COMMAND_SET_EEPROM)))
+	if (opts.verbose && dev && !(opts.cmd & (COMMAND_CLR_EEPROM | COMMAND_GET_EEPROM | COMMAND_SET_EEPROM)))
 		hub_port_status(dev, hubs[hub].nport);
 
 	if (dev)
