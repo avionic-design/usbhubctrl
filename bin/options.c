@@ -143,7 +143,7 @@ int options_scan(struct hub_options *hargs, int argc, char **argv)
 				fprintf(stderr, "Command line argument for -r is invalid.\n\n");
 				return -EINVAL;
 			}
-			hargs->read_size = argument;
+			hargs->eesize = argument;
 			break;
 
 		case 'w':
@@ -159,7 +159,7 @@ int options_scan(struct hub_options *hargs, int argc, char **argv)
 				fprintf(stderr, "Command line argument for -w is invalid.\n\n");
 				return -EINVAL;
 			}
-			hargs->write_size = argument;
+			hargs->eesize = argument;
 			break;
 
 		case 'e':
@@ -175,7 +175,7 @@ int options_scan(struct hub_options *hargs, int argc, char **argv)
 				fprintf(stderr, "Command line argument for -e is invalid.\n\n");
 				return -EINVAL;
 			}
-			hargs->erase_size = argument;
+			hargs->eesize = argument;
 			break;
 
 		case 'f':

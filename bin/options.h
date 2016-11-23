@@ -23,9 +23,7 @@
 struct hub_options {
 	int cmd;
 	char *filename;
-	uint16_t erase_size;
-	uint16_t write_size;
-	uint16_t read_size;
+	uint16_t eesize;
 	int busnum;
 	int devnum;
 	int index;

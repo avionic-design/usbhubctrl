@@ -276,9 +276,7 @@ int main(int argc, char **argv)
 	struct hub_options opts = {
 		.cmd = COMMAND_SET_NONE,
 		.filename = NULL,
-		.erase_size = 0,
-		.write_size = 0,
-		.read_size = 0,
+		.eesize = 0,
 		.busnum = 0,
 		.devnum = 0,
 		.index = 0,
@@ -344,7 +342,7 @@ int main(int argc, char **argv)
 
 	switch (opts.cmd) {
 	case COMMAND_GET_EEPROM:
-		buffer = malloc(opts.read_size);
+		buffer = malloc(opts.eesize);
 		if (!buffer) {
 			fprintf(stderr, "Malloc failed with error %s\n",
 					strerror(errno));
@@ -352,8 +350,8 @@ int main(int argc, char **argv)
 			goto cleanup;
 		}
 
-		ret_val = usb_eeprom_read(dev, buffer, opts.read_size);
-		if (ret_val != opts.read_size) {
+		ret_val = usb_eeprom_read(dev, buffer, opts.eesize);
+		if (ret_val != opts.eesize) {
 			fprintf(stderr, "EEPROM read failed: %d\n", ret_val);
 			result = 1;
 			goto cleanup;
@@ -371,8 +369,8 @@ int main(int argc, char **argv)
 		if (!opts.filename)
 			opts.filename = default_file;
 
-		ret_val = file_write(opts.filename, buffer, opts.read_size);
-		if (ret_val != opts.read_size) {
+		ret_val = file_write(opts.filename, buffer, opts.eesize);
+		if (ret_val != opts.eesize) {
 			fprintf(stderr, "Write file failed.\n");
 			result = 1;
 			goto cleanup;
@@ -387,7 +385,7 @@ int main(int argc, char **argv)
 			result = 1;
 			goto cleanup;
 		}
-		ret_val = file_read(opts.filename, &buffer, opts.write_size);
+		ret_val = file_read(opts.filename, &buffer, opts.eesize);
 		if (ret_val < 0) {
 			fprintf(stderr, "Read file failed.\n");
 			result = 1;
@@ -429,9 +427,9 @@ int main(int argc, char **argv)
 
 		break;
 	case COMMAND_CLR_EEPROM:
-		ret_val = usb_eeprom_erase(dev, opts.erase_size);
+		ret_val = usb_eeprom_erase(dev, opts.eesize);
 
-		if (ret_val == opts.erase_size)
+		if (ret_val == opts.eesize)
 			break;
 
 		if (ret_val < 0) {
@@ -439,7 +437,7 @@ int main(int argc, char **argv)
 					libusb_strerror(ret_val));
 		} else {
 			fprintf(stderr, "EEPROM erase failed, %i bytes erased instead of %i bytes\n",
-					ret_val, opts.erase_size);
+					ret_val, opts.eesize);
 		}
 
 		result = 1;
