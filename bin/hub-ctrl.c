@@ -78,8 +78,8 @@ static int num_hubs;
 static void usage(const char *progname)
 {
 	fprintf(stderr,
-		"Usage: %s [{-b BUSNUM -d DEVNUM}] [-v]\n"
-		"          [-P PORT] [{-p [VALUE]|-l [VALUE]}]\n\n"
+		"Usage: %s [{-b BUSNUM -d DEVNUM}] [-v] [-l]\n"
+		"          [-P PORT] [{-p [VALUE]|-i [VALUE]}]\n\n"
 		"or:    %s [{-b BUSNUM -d DEVNUM}] [-v]\n"
 		"          [{-w BYTES -f filename} | {-r BYTES -f filename} | -e BYTES]\n\n"
 		"Options:\n"
@@ -88,7 +88,8 @@ static void usage(const char *progname)
 		"-e     <N>             Erase N bytes in EEPROM\n"
 		"-f     <filename>      filename, \"-\" for stdin/stdout, if not used a file \"output.iic\" was created\n"
 		"-h                     help\n"
-		"-l     <leds>          Set USB hub LEDs to specified value[0, 1, 2, 3]\n"
+		"-i     <indicator>     Set USB hub indicators to specified value[0, 1, 2, 3]\n"
+		"-l                     Scan for and list supported hubs\n"
 		"-P     <port-ID>       ID of USB hub port\n"
 		"-p     <enable>        Value enable or disable port [0, 1]\n"
 		"-q     <quiet>         no output at all\n"
@@ -190,14 +191,14 @@ static int usb_find_hubs(int print)
 		memset(&desc, 0, sizeof(desc));
 
 		ret = libusb_get_device_descriptor(hub, &desc);
-		if (ret && print) {
+		if (ret && print > 1) {
 			fprintf(stderr, "Device %03d:%03d: No descriptor: %s\n",
 				id_bus, id_node, libusb_strerror(ret));
 		}
 
 		ret = libusb_open(hub, &dev);
 		if (ret) {
-			if (print) {
+			if (print > 1) {
 				fprintf(stderr, "Device %03d:%03d (%04x:%04x): "
 					"Failed to open: %s\n",
 					id_bus, id_node, desc.idVendor,
@@ -212,7 +213,7 @@ static int usb_find_hubs(int print)
 			LIBUSB_DT_HUB << 8, 0, buf, sizeof(buf), CTRL_TIMEOUT);
 
 		if (len <= 0) {
-			if (print) {
+			if (print > 1) {
 				fprintf(stderr, "Device %03d:%03d (%04x:%04x): "
 					"Failed to get descriptor: %s\n",
 					id_bus, id_node, desc.idVendor,
@@ -228,7 +229,7 @@ static int usb_find_hubs(int print)
 
 		if (!(hub_desc.wHubCharacteristics & HUB_CHAR_PORTIND) &&
 				(hub_desc.wHubCharacteristics & HUB_CHAR_LPSM) >= 2) {
-			if (print) {
+			if (print > 1) {
 				fprintf(stderr, "Device %03d:%03d (%04x:%04x): "
 					"Neither power switching nor "
 					"indicators supported.\n",
@@ -304,7 +305,7 @@ void clean_hub_info(struct hub_info *hubs, int len)
 
 int main(int argc, char **argv)
 {
-	const char short_options[] = "b:d:e:f:hl:P:p:qr:vw:";
+	const char short_options[] = "b:d:e:f:hi:lP:p:qr:vw:";
 	int feature = USB_PORT_FEAT_INDICATOR;
 	int request = LIBUSB_REQUEST_SET_FEATURE;
 	char *default_file = "output.iic";
@@ -331,8 +332,10 @@ int main(int argc, char **argv)
 	int option;
 	int i;
 
-	if (argc == 1)
-		listing = 1;
+	if (argc == 1) {
+		usage(argv[0]);
+		exit(0);
+	}
 
 	for (;;) {
 		option = getopt(argc, argv, short_options);
@@ -343,6 +346,10 @@ int main(int argc, char **argv)
 		case 'h':
 			usage(argv[0]);
 			exit(0);
+
+		case 'l':
+			listing = 1;
+			break;
 
 		case 'b':
 			errno = 0;
@@ -377,7 +384,7 @@ int main(int argc, char **argv)
 			port = argument;
 			break;
 
-		case 'l':
+		case 'i':
 			if (cmd != COMMAND_SET_NONE)
 				exit_with_usage(argv[0]);
 			errno = 0;
@@ -405,8 +412,10 @@ int main(int argc, char **argv)
 
 		case 'v':
 			verbose = 1;
-			if (argc == 2)
-				listing = 1;
+			if (argc == 2) {
+				usage(argv[0]);
+				exit(1);
+			}
 			break;
 
 		case 'q':
@@ -486,7 +495,7 @@ int main(int argc, char **argv)
 
 	libusb_init(NULL);
 
-	if (usb_find_hubs(listing | verbose) <= 0) {
+	if (usb_find_hubs(listing * (1 + verbose)) <= 0) {
 		fprintf(stderr, "No hubs found.\n");
 		result = 1;
 		goto cleanup;
