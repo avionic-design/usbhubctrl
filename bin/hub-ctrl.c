@@ -79,9 +79,9 @@ static int num_hubs;
 static void usage(const char *progname)
 {
 	fprintf(stderr,
-		"Usage: %s [{-n HUBNUM | -b BUSNUM -d DEVNUM}] [-v]\n"
+		"Usage: %s [{-b BUSNUM -d DEVNUM}] [-v]\n"
 		"          [-P PORT] [{-p [VALUE]|-l [VALUE]}]\n\n"
-		"or:    %s [{-n HUBNUM | -b BUSNUM -d DEVNUM}] [-v]\n"
+		"or:    %s [{-b BUSNUM -d DEVNUM}] [-v]\n"
 		"          [{-w BYTES -f filename} | {-r BYTES -f filename} | -e BYTES]\n\n"
 		"Options:\n"
 		"-b     <bus-number>    USB bus number\n"
@@ -90,7 +90,6 @@ static void usage(const char *progname)
 		"-f     <filename>      filename, \"-\" for stdin/stdout, if not used a file \"output.iic\" was created\n"
 		"-h                     help\n"
 		"-l     <leds>          Set USB hub LEDs to specified value[0, 1, 2, 3]\n"
-		"-n     <hub-ID>        USB hub ID\n"
 		"-P     <port-ID>       ID of USB hub port\n"
 		"-p     <enable>        Value enable or disable port [0, 1]\n"
 		"-q     <quiet>         no output at all\n"
@@ -150,7 +149,7 @@ static void hub_port_status(usb_dev_handle *uh, int nport)
 	}
 }
 
-static int usb_find_hubs(int listing, int verbose, int busnum, int devnum, int hub)
+static int usb_find_hubs(int listing, int verbose, int busnum, int devnum)
 {
 	struct usb_hub_descriptor *uhd = NULL;
 	struct usb_bus *busses;
@@ -178,9 +177,8 @@ static int usb_find_hubs(int listing, int verbose, int busnum, int devnum, int h
 					dev->descriptor.bDeviceClass != USB_CLASS_VENDOR_SPEC)
 				continue;
 
-			if (listing || (verbose && ((atoi(bus->dirname) == busnum &&
-					dev->devnum == devnum) ||
-					hub == num_hubs))) {
+			if (listing || (verbose && (atoi(bus->dirname) == busnum &&
+					dev->devnum == devnum))) {
 				print = 1;
 			}
 
@@ -256,7 +254,7 @@ int get_hub(int busnum, int devnum)
 
 int main(int argc, char **argv)
 {
-	const char short_options[] = "b:d:e:f:hl:n:P:p:qr:vw:";
+	const char short_options[] = "b:d:e:f:hl:P:p:qr:vw:";
 	int feature = USB_PORT_FEAT_INDICATOR;
 	int request = USB_REQ_SET_FEATURE;
 	char *default_file = "output.iic";
@@ -278,8 +276,8 @@ int main(int argc, char **argv)
 	int index = 0;
 	int quiet = 0;
 	int port = 1;
-	int hub = -1;
 	int len = 0;
+	int hub = 0;
 	int option;
 	int i;
 
@@ -295,21 +293,8 @@ int main(int argc, char **argv)
 		case 'h':
 			usage(argv[0]);
 			exit(0);
-		case 'n':
-			if (busnum > 0 || devnum > 0)
-				exit_with_usage(argv[0]);
-			errno = 0;
-			argument = strtoul(optarg, NULL, 10);
-			if (errno != 0 || argument == 0) {
-				fprintf(stderr, "Command line argument for -n is out of range.\n\n");
-				exit(1);
-			}
-			hub = argument;
-			break;
 
 		case 'b':
-			if (hub >= 0)
-				exit_with_usage(argv[0]);
 			errno = 0;
 			argument = strtoul(optarg, NULL, 10);
 			if (errno != 0 || argument == 0) {
@@ -320,8 +305,6 @@ int main(int argc, char **argv)
 			break;
 
 		case 'd':
-			if (hub >= 0)
-				exit_with_usage(argv[0]);
 			errno = 0;
 			argument = strtoul(optarg, NULL, 10);
 			if (errno != 0 || argument == 0) {
@@ -447,10 +430,6 @@ int main(int argc, char **argv)
 	if ((busnum > 0 && devnum <= 0) || (busnum <= 0 && devnum > 0))
 		exit_with_usage(argv[0]);
 
-	/* Default is the hub #0 */
-	if (hub < 0 && busnum == 0)
-		hub = 0;
-
 	/* Default is POWER */
 	if (cmd == COMMAND_SET_NONE)
 		cmd = COMMAND_SET_POWER;
@@ -459,7 +438,7 @@ int main(int argc, char **argv)
 	usb_find_busses();
 	usb_find_devices();
 
-	if (usb_find_hubs(listing, verbose, busnum, devnum, hub) <= 0) {
+	if (usb_find_hubs(listing, verbose, busnum, devnum) <= 0) {
 		fprintf(stderr, "No hubs found.\n");
 		exit(1);
 	}
@@ -467,9 +446,7 @@ int main(int argc, char **argv)
 	if (listing)
 		exit(0);
 
-	if (hub < 0)
-		hub = get_hub(busnum, devnum);
-
+	hub = get_hub(busnum, devnum);
 	if (hub >= 0 && hub < num_hubs)
 		uh = usb_open(hubs[hub].dev);
 
