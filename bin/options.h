@@ -30,6 +30,7 @@ struct hub_options {
 	size_t devnum;
 	size_t power;
 	size_t port;
+	int overwrite;
 	int verbose;
 	int listing;
 	int quiet;

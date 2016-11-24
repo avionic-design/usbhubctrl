@@ -259,6 +259,31 @@ int get_hub(int busnum, int devnum)
 	return -1;
 }
 
+int get_hub_with_eeprom(int *hub, int accept_nonblank)
+{
+	int mask = EEPROM_SUPPORT_DEVICE | EEPROM_SUPPORT_STORAGE;
+	int count = 0;
+	int ret;
+	int i;
+
+	if (!hub)
+		return -1;
+
+	if (!accept_nonblank)
+		mask |= EEPROM_SUPPORT_BLANK;
+
+	for (i = 0; i < num_hubs; i++) {
+		ret = usb_eeprom_support(hubs[i].dev);
+		if ((ret & mask) == mask) {
+			if (!count)
+				*hub = i;
+			count++;
+		}
+	}
+
+	return count;
+}
+
 void clean_hub_info(struct hub_info *hubs, int len)
 {
 	int i;
@@ -281,6 +306,7 @@ int main(int argc, char **argv)
 		.devnum = 0,
 		.power = 0,
 		.port = 1,
+		.overwrite = 0,
 		.verbose = 0,
 		.listing = 0,
 		.quiet = 0,
@@ -323,17 +349,35 @@ int main(int argc, char **argv)
 		goto cleanup;
 	}
 
-	hub = get_hub(opts.busnum, opts.devnum);
-	if (hub >= 0) {
-		ret_val = libusb_open(hubs[hub].dev, &dev);
-		if (ret_val) {
-			fprintf(stderr, "Failed to open device: %s\n",
-				libusb_strerror(ret_val));
+	if (!opts.busnum && !opts.devnum) {
+		ret_val = get_hub_with_eeprom(&hub,
+			opts.cmd == COMMAND_SET_EEPROM ? opts.overwrite : 1);
+		if (ret_val < 1) {
+			fprintf(stderr, "No hubs with programmable (non-blank?)"
+				" EEPROM detected.\n");
+			result = 1;
+			goto cleanup;
+		}
+		if (ret_val > 1) {
+			fprintf(stderr, "Multiple hubs (%d) with programmable "
+				"EEPROM detected! To stay safe please remove "
+				"all but one.\n", ret_val);
+			result = 1;
+			goto cleanup;
+		}
+	} else {
+		hub = get_hub(opts.busnum, opts.devnum);
+		if (hub < 0) {
+			fprintf(stderr, "No device?\n");
+			result = 1;
+			goto cleanup;
 		}
 	}
 
-	if (dev == NULL) {
-		fprintf(stderr, "No device?\n");
+	ret_val = libusb_open(hubs[hub].dev, &dev);
+	if (ret_val) {
+		fprintf(stderr, "Failed to open device: %s\n",
+			libusb_strerror(ret_val));
 		result = 1;
 		goto cleanup;
 	}

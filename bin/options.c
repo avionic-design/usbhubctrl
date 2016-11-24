@@ -53,7 +53,7 @@ void options_help(const char *progname)
 		"Usage: %s [{-b BUSNUM -d DEVNUM}] [-v] [-l]\n"
 		"          [-P PORT] [{-p [VALUE]|-i [VALUE]}]\n\n"
 		"or:    %s [{-b BUSNUM -d DEVNUM}] [-v]\n"
-		"          [{-w BYTES -f filename} | {-r BYTES -f filename} | -e BYTES]\n\n"
+		"          [{-w BYTES -f filename} | {-r BYTES -f filename} | -e BYTES] [-x]\n\n"
 		"Options:\n"
 		"-b     <bus-number>    USB bus number\n"
 		"-d     <dev-number>    USB device number\n"
@@ -67,13 +67,14 @@ void options_help(const char *progname)
 		"-q     <quiet>         no output at all\n"
 		"-r     <N>             Read N bytes from EEPROM\n"
 		"-v                     verbose\n"
-		"-w     <N>             Write N bytes to EEPROM\n",
+		"-w     <N>             Write N bytes to EEPROM\n"
+		"-x                     Overwrite non-blank EEPROM devices\n",
 		progname, progname);
 }
 
 int options_scan(struct hub_options *hargs, int argc, char **argv)
 {
-	const char short_options[] = "b:d:e:f:hi:lP:p:qr:vw:";
+	const char short_options[] = "b:d:e:f:hi:lP:p:qr:vw:x";
 	int option;
 	int ret;
 
@@ -166,6 +167,10 @@ int options_scan(struct hub_options *hargs, int argc, char **argv)
 				option == 'r' ? COMMAND_GET_EEPROM :
 				option == 'w' ? COMMAND_SET_EEPROM :
 				COMMAND_CLR_EEPROM;
+			break;
+
+		case 'x':
+			hargs->overwrite = 1;
 			break;
 
 		case 'f':
