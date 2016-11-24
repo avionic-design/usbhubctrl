@@ -26,7 +26,6 @@ struct hub_options {
 	uint16_t eesize;
 	int busnum;
 	int devnum;
-	int index;
 	int power;
 	int port;
 	int verbose;

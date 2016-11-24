@@ -279,7 +279,6 @@ int main(int argc, char **argv)
 		.eesize = 0,
 		.busnum = 0,
 		.devnum = 0,
-		.index = 0,
 		.power = 0,
 		.port = 1,
 		.verbose = 0,
