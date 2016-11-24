@@ -7,7 +7,8 @@ hub_ctrl_CFLAGS = \
 
 hub_ctrl_SOURCES = \
 	hub-ctrl.c \
-	options.c
+	options.c \
+	options.h
 
 hub_ctrl_LDADD = \
 	@LIBUSB_LIBS@ \
