@@ -333,7 +333,7 @@ int main(int argc, char **argv)
 	}
 
 	if (dev == NULL) {
-		fprintf(stderr, "Device not found.\n");
+		fprintf(stderr, "No device?\n");
 		result = 1;
 		goto cleanup;
 	}
@@ -342,7 +342,7 @@ int main(int argc, char **argv)
 	case COMMAND_GET_EEPROM:
 		buffer = malloc(opts.eesize);
 		if (!buffer) {
-			fprintf(stderr, "Malloc failed with error %s\n",
+			fprintf(stderr, "malloc() failed: %s\n",
 					strerror(errno));
 			result = 1;
 			goto cleanup;
@@ -369,23 +369,25 @@ int main(int argc, char **argv)
 
 		ret_val = file_write(opts.filename, buffer, opts.eesize);
 		if (ret_val != opts.eesize) {
-			fprintf(stderr, "Write file failed.\n");
+			fprintf(stderr, "Writing file '%s' failed: %d\n",
+				opts.filename, ret_val);
 			result = 1;
 			goto cleanup;
 		}
 
-		if (strcmp(opts.filename, "-") != 0 && opts.verbose)
-			printf("EEPROM written to %s\n", opts.filename);
+		if (strcmp(opts.filename, "-") != 0 && !opts.quiet)
+			printf("EEPROM dumped to '%s'\n", opts.filename);
 		break;
 	case COMMAND_SET_EEPROM:
 		if (!opts.filename) {
-			fprintf(stderr, "No file name specified.\n");
+			fprintf(stderr, "No input file?\n");
 			result = 1;
 			goto cleanup;
 		}
 		ret_val = file_read(opts.filename, &buffer, opts.eesize);
 		if (ret_val < 0) {
-			fprintf(stderr, "Read file failed.\n");
+			fprintf(stderr, "Reading file '%s' failed: %d\n",
+				opts.filename, ret_val);
 			result = 1;
 			goto cleanup;
 		}
@@ -395,32 +397,31 @@ int main(int argc, char **argv)
 
 		ret_val = usb_eeprom_write(dev, buffer, len);
 		if (ret_val != len) {
-			fprintf(stderr, "EEPROM write failed.\n");
+			fprintf(stderr, "EEPROM write failed: %d\n", ret_val);
 			result = 1;
 			goto cleanup;
 		}
 
 		cmp_buffer = malloc(len);
 		if (!cmp_buffer) {
-			fprintf(stderr, "Malloc failed with error %s\n",
+			fprintf(stderr, "malloc() failed: %s\n",
 					strerror(errno));
 			result = 1;
 			goto cleanup;
 		}
 		ret_val = usb_eeprom_read(dev, cmp_buffer, len);
 		if (ret_val != len) {
-			fprintf(stderr, "EEPROM read failed.\n");
+			fprintf(stderr, "EEPROM read failed: %d\n", ret_val);
 			result = 1;
 			goto cleanup;
 		}
 
 		if (memcmp(buffer, cmp_buffer, len) != 0) {
-			fprintf(stderr, "EEPROM writing failed\n");
+			fprintf(stderr, "EEPROM verification failed!\n");
 			result = 1;
 			goto cleanup;
 		} else if (!opts.quiet) {
-			printf("File content successfully written %i bytes to EEPROM\n",
-					len);
+			printf("EEPROM updated (%i B)\n", len);
 		}
 
 		break;
@@ -431,10 +432,9 @@ int main(int argc, char **argv)
 			break;
 
 		if (ret_val < 0) {
-			fprintf(stderr, "EEPROM erase failed with error code: %s\n",
-					libusb_strerror(ret_val));
+			fprintf(stderr, "EEPROM erase failed: %d\n", ret_val);
 		} else {
-			fprintf(stderr, "EEPROM erase failed, %i bytes erased instead of %zu bytes\n",
+			fprintf(stderr, "EEPROM erase incomplete (%i/%zu B)\n",
 					ret_val, opts.eesize);
 		}
 
@@ -450,7 +450,7 @@ int main(int argc, char **argv)
 		len = libusb_control_transfer(dev, USB_RT_PORT, request, feature, index,
 				NULL, 0, CTRL_TIMEOUT);
 		if (len < 0) {
-			fprintf(stderr, "libusb_control_transfer failed, error code: %s.\n",
+			fprintf(stderr, "libusb_control_transfer failed: %s.\n",
 					libusb_strerror(len));
 			result = 1;
 			goto cleanup;
@@ -465,7 +465,7 @@ int main(int argc, char **argv)
 		len = libusb_control_transfer(dev, USB_RT_PORT, request, feature, index,
 				NULL, 0, CTRL_TIMEOUT);
 		if (len < 0) {
-			fprintf(stderr, "libusb_control_transfer failed, error code: %s.\n",
+			fprintf(stderr, "libusb_control_transfer failed: %s.\n",
 					libusb_strerror(len));
 			result = 1;
 			goto cleanup;
