@@ -19,6 +19,8 @@
 #define COMMAND_GET_EEPROM		(1 << 2)
 #define COMMAND_SET_EEPROM		(1 << 3)
 #define COMMAND_CLR_EEPROM		(1 << 4)
+#define COMMAND_TYPE_EEPROM		\
+		( COMMAND_GET_EEPROM | COMMAND_SET_EEPROM | COMMAND_CLR_EEPROM )
 
 struct hub_options {
 	int cmd;

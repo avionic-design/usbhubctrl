@@ -473,13 +473,13 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (opts.verbose && !(opts.cmd & (COMMAND_CLR_EEPROM | COMMAND_GET_EEPROM | COMMAND_SET_EEPROM))) {
+	if (opts.verbose && !(opts.cmd & COMMAND_TYPE_EEPROM)) {
 		printf("Sent control message (REQUEST=%d, FEATURE=%d, INDEX=%04x)\n",
 			request, feature, index);
 	}
 
 cleanup:
-	if (opts.verbose && dev && !(opts.cmd & (COMMAND_CLR_EEPROM | COMMAND_GET_EEPROM | COMMAND_SET_EEPROM)))
+	if (opts.verbose && dev && !(opts.cmd & COMMAND_TYPE_EEPROM))
 		hub_port_status(dev, hubs[hub].nport);
 
 	if (dev)
