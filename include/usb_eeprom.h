@@ -29,6 +29,20 @@
 #define MAX_EEPROM_SIZE 0x1000
 
 /**
+ * @defgroup eeprom_support_flags EEPROM support flags
+ *
+ * Flags indicating the level of support for EEPROM operations. Tells whether
+ * an EEPROM exists, is blank or the USB device it is attached to even qualifies
+ * for known EEPROM commands.
+ *
+ * @{
+ */
+#define EEPROM_SUPPORT_DEVICE		0x01	/**< USB device is qualified */
+#define EEPROM_SUPPORT_STORAGE		0x02	/**< EEPROM is attached */
+#define EEPROM_SUPPORT_BLANK		0x04	/**< Attached EEPROM is blank */
+/** @} */
+
+/**
  * @brief Erase EEPROM data
  *
  * Erase the data contained in the EEPROM of the USB hub.
@@ -69,5 +83,18 @@ int usb_eeprom_read(libusb_device_handle *dev, uint8_t *buffer, size_t size);
  * @return -errno on failure
  */
 int usb_eeprom_write(libusb_device_handle *dev, uint8_t *buffer, size_t size);
+
+/**
+ * @brief Detect an attached EEPROM on a supported device
+ *
+ * @param dev pointer to a libusb_device
+ * @return Combination of @ref eeprom_support_flags when the device is supprted
+ * @return 0 for an unspported device
+ * @return -EINVAL on failure if dev is @c NULL
+ * @return -EIO if the descriptor cannot be read
+ *
+ * @note For now, only Cypress hubs (04b4:6560) are supported.
+ */
+int usb_eeprom_support(libusb_device *dev);
 
 #endif /* USB_EEPROM_H */

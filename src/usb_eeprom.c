@@ -9,6 +9,9 @@
 
 #include "usb_eeprom.h"
 
+#define CYPRESS_HUB_VID		0x04b4
+#define CYPRESS_HUB_PID		0x6560
+
 int usb_eeprom_erase(libusb_device_handle *dev, size_t size)
 {
 	uint8_t *erase_buf;
@@ -66,4 +69,31 @@ int usb_eeprom_write(libusb_device_handle *dev, uint8_t *buffer, size_t size)
 	usleep(5500);
 
 	return len;
+}
+
+int usb_eeprom_support(libusb_device *dev)
+{
+	struct libusb_device_descriptor desc;
+	int ret;
+
+	if (!dev)
+		return -EINVAL;
+
+	ret = libusb_get_device_descriptor(dev, &desc);
+	if (ret)
+		return -EIO;
+
+	if (desc.idVendor != CYPRESS_HUB_VID ||
+			desc.idProduct != CYPRESS_HUB_PID)
+		return ret;
+
+	ret |= EEPROM_SUPPORT_DEVICE;
+
+	if (desc.bDeviceClass == LIBUSB_CLASS_HUB && desc.bcdDevice != 0x9015)
+		ret |= EEPROM_SUPPORT_STORAGE;
+	else if (desc.bDeviceClass == LIBUSB_CLASS_VENDOR_SPEC &&
+			desc.bcdDevice == 0x9015)
+		ret |= EEPROM_SUPPORT_STORAGE | EEPROM_SUPPORT_BLANK;
+
+	return ret;
 }
