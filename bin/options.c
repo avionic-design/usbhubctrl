@@ -10,12 +10,42 @@
 
 #include <errno.h>
 #include <getopt.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "options.h"
 
 #define EEPROM_SIZE_LIMIT	4096
+
+static int conv_ul_arg(size_t *dest, const char *arg, size_t min, size_t max,
+	char name)
+{
+	unsigned long num;
+
+	if (!dest)
+		return -EINVAL;
+
+	errno = 0;
+	num = strtoul(arg, NULL, 0);
+	if (errno) {
+		if (name)
+			fprintf(stderr, "Invalid parameter for -%c: '%s'\n",
+				name, arg);
+		return -errno;
+	}
+
+	if (num < min || num > max) {
+		if (name)
+			fprintf(stderr, "Parameter for -%c out of range "
+				"[%lu, %lu]\n", name, min, max);
+		return -ERANGE;
+	}
+
+	*dest = num;
+
+	return 0;
+}
 
 void options_help(const char *progname)
 {
@@ -44,8 +74,8 @@ void options_help(const char *progname)
 int options_scan(struct hub_options *hargs, int argc, char **argv)
 {
 	const char short_options[] = "b:d:e:f:hi:lP:p:qr:vw:";
-	unsigned long argument = 0;
 	int option;
+	int ret;
 
 	if (!hargs)
 		return -EINVAL;
@@ -64,62 +94,53 @@ int options_scan(struct hub_options *hargs, int argc, char **argv)
 			break;
 
 		case 'b':
-			errno = 0;
-			argument = strtoul(optarg, NULL, 10);
-			if (errno != 0 || argument == 0) {
-				fprintf(stderr, "Command line argument for -b is out of range.\n\n");
-				return -ERANGE;
-			}
-			hargs->busnum = argument;
+			ret = conv_ul_arg(&hargs->busnum, optarg, 1, USHRT_MAX,
+				option);
+			if (ret)
+				return ret;
 			break;
 
 		case 'd':
-			errno = 0;
-			argument = strtoul(optarg, NULL, 10);
-			if (errno != 0 || argument == 0) {
-				fprintf(stderr, "Command line argument for -d is out of range.\n\n");
-				return -ERANGE;
-			}
-			hargs->devnum = argument;
+			ret = conv_ul_arg(&hargs->devnum, optarg, 1, USHRT_MAX,
+				option);
+			if (ret)
+				return ret;
 			break;
 
 		case 'P':
-			if (hargs->cmd != COMMAND_SET_NONE && hargs->cmd != COMMAND_SET_POWER)
+			if (hargs->cmd != COMMAND_SET_NONE &&
+					hargs->cmd != COMMAND_SET_POWER)
 				return -EINVAL;
+
+			ret = conv_ul_arg(&hargs->port, optarg, 1, USHRT_MAX,
+				option);
+			if (ret)
+				return ret;
+
 			hargs->cmd = COMMAND_SET_POWER;
-			errno = 0;
-			argument = strtoul(optarg, NULL, 10);
-			if (errno != 0 || argument == 0) {
-				fprintf(stderr, "Command line argument for -P is out of range.\n\n");
-				return -ERANGE;
-			}
-			hargs->port = argument;
 			break;
 
 		case 'i':
 			if (hargs->cmd != COMMAND_SET_NONE)
 				return -EINVAL;
-			errno = 0;
-			argument = strtoul(optarg, NULL, 10);
-			if (errno != 0 || argument > 3) {
-				fprintf(stderr, "Command line argument for -i is out of range.\n\n");
-				return -ERANGE;
-			}
+
+			ret = conv_ul_arg(&hargs->power, optarg, 0, 3, option);
+			if (ret)
+				return ret;
+
 			hargs->cmd = COMMAND_SET_LED;
-			hargs->power = argument;
 			break;
 
 		case 'p':
-			if (hargs->cmd != COMMAND_SET_NONE && hargs->cmd != COMMAND_SET_POWER)
+			if (hargs->cmd != COMMAND_SET_NONE &&
+					hargs->cmd != COMMAND_SET_POWER)
 				return -EINVAL;
+
+			ret = conv_ul_arg(&hargs->power, optarg, 0, 1, option);
+			if (ret)
+				return ret;
+
 			hargs->cmd = COMMAND_SET_POWER;
-			errno = 0;
-			argument = strtoul(optarg, NULL, 10);
-			if (errno != 0 || argument > 1) {
-				fprintf(stderr, "Command line argument for -p is out of range.\n\n");
-				return -ERANGE;
-			}
-			hargs->power = argument;
 			break;
 
 		case 'v':
@@ -131,51 +152,20 @@ int options_scan(struct hub_options *hargs, int argc, char **argv)
 			break;
 
 		case 'r':
-			if (hargs->cmd != COMMAND_SET_NONE)
-				return -EINVAL;
-			hargs->cmd = COMMAND_GET_EEPROM;
-			errno = 0;
-			argument = strtoul(optarg, NULL, 10);
-			if (errno != 0) {
-				fprintf(stderr, "Command line argument for -r is out of range.\n\n");
-				return -ERANGE;
-			} else if (argument > EEPROM_SIZE_LIMIT || !argument) {
-				fprintf(stderr, "Command line argument for -r is invalid.\n\n");
-				return -EINVAL;
-			}
-			hargs->eesize = argument;
-			break;
-
 		case 'w':
-			if (hargs->cmd != COMMAND_SET_NONE)
-				return -EINVAL;
-			hargs->cmd = COMMAND_SET_EEPROM;
-			errno = 0;
-			argument = strtoul(optarg, NULL, 10);
-			if (errno != 0) {
-				fprintf(stderr, "Command line argument for -w is out of range.\n\n");
-				return -ERANGE;
-			} else if (argument > EEPROM_SIZE_LIMIT || !argument) {
-				fprintf(stderr, "Command line argument for -w is invalid.\n\n");
-				return -EINVAL;
-			}
-			hargs->eesize = argument;
-			break;
-
 		case 'e':
 			if (hargs->cmd != COMMAND_SET_NONE)
 				return -EINVAL;
-			hargs->cmd = COMMAND_CLR_EEPROM;
-			errno = 0;
-			argument = strtoul(optarg, NULL, 10);
-			if (errno != 0) {
-				fprintf(stderr, "Command line argument for -e is out of range.\n\n");
-				return -ERANGE;
-			} else if (argument > EEPROM_SIZE_LIMIT) {
-				fprintf(stderr, "Command line argument for -e is invalid.\n\n");
-				return -EINVAL;
-			}
-			hargs->eesize = argument;
+
+			ret = conv_ul_arg(&hargs->eesize, optarg, 1,
+				EEPROM_SIZE_LIMIT, option);
+			if (ret)
+				return ret;
+
+			hargs->cmd =
+				option == 'r' ? COMMAND_GET_EEPROM :
+				option == 'w' ? COMMAND_SET_EEPROM :
+				COMMAND_CLR_EEPROM;
 			break;
 
 		case 'f':

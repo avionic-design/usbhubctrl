@@ -301,8 +301,7 @@ int main(int argc, char **argv)
 	}
 
 	/* BUS is specified, but DEV isn't, or ... */
-	if ((opts.busnum > 0 && opts.devnum <= 0) ||
-			(opts.busnum <= 0 && opts.devnum > 0)) {
+	if (!opts.busnum != !opts.devnum) {
 		options_help(argv[0]);
 		exit(ret_val);
 	}
@@ -435,7 +434,7 @@ int main(int argc, char **argv)
 			fprintf(stderr, "EEPROM erase failed with error code: %s\n",
 					libusb_strerror(ret_val));
 		} else {
-			fprintf(stderr, "EEPROM erase failed, %i bytes erased instead of %i bytes\n",
+			fprintf(stderr, "EEPROM erase failed, %i bytes erased instead of %zu bytes\n",
 					ret_val, opts.eesize);
 		}
 
@@ -462,7 +461,7 @@ int main(int argc, char **argv)
 		feature = USB_PORT_FEAT_INDICATOR;
 		index = (opts.power << 8) | opts.port;
 		if (!opts.quiet)
-			printf("port %02x value = %02x\n", opts.port, opts.power);
+			printf("port %02zx value = %02zx\n", opts.port, opts.power);
 		len = libusb_control_transfer(dev, USB_RT_PORT, request, feature, index,
 				NULL, 0, CTRL_TIMEOUT);
 		if (len < 0) {

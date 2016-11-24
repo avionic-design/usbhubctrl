@@ -11,7 +11,7 @@
 #ifndef OPTIONS_H
 #define OPTIONS_H
 
-#include <stdint.h>
+#include <stddef.h>
 
 #define COMMAND_SET_NONE		0
 #define COMMAND_SET_LED			(1 << 0)
@@ -25,11 +25,11 @@
 struct hub_options {
 	int cmd;
 	char *filename;
-	uint16_t eesize;
-	int busnum;
-	int devnum;
-	int power;
-	int port;
+	size_t eesize;
+	size_t busnum;
+	size_t devnum;
+	size_t power;
+	size_t port;
 	int verbose;
 	int listing;
 	int quiet;
