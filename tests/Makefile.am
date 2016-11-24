@@ -17,6 +17,7 @@ check_hub_ctrl_SOURCES = \
 	check_hub_ctrl.c \
 	check_usb_eeprom.c \
 	check_usb_eeprom.h \
+	check_usb_eeprom_data.h \
 	dummy_usb.c \
 	dummy_usb.h
 

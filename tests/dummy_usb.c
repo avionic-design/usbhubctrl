@@ -87,3 +87,29 @@ int libusb_control_transfer(libusb_device_handle *dev_handle,
 	return wLength;
 }
 
+/**
+ * @brief Mock for reading the device descriptor
+ *
+ * Mock function to imitate fetching a descriptor for a USB device. The results
+ * shall be supplied via the first argument.
+ *
+ * @param dev Casted pointer to the desired actual descriptor
+ * @param desc Pointer to the resulting descriptor
+ * @return 0 on success
+ * @return -EINVAL if any arguments are NULL
+ * @pre dev @b must be allocated to memory at least the size of the descriptor!
+ * An easy and safe way to achieve this is casting pointers around.
+ */
+int libusb_get_device_descriptor(libusb_device *dev,
+	struct libusb_device_descriptor *desc)
+{
+	struct libusb_device_descriptor ld;
+
+	if (!dev || !desc)
+		return -EINVAL;
+
+	ld = *((struct libusb_device_descriptor *)dev);
+	memcpy(desc, &ld, sizeof(ld));
+
+	return 0;
+}

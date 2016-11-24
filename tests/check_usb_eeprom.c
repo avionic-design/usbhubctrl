@@ -5,6 +5,7 @@
 
 #include "dummy_usb.h"
 #include "usb_eeprom.h"
+#include "check_usb_eeprom_data.h"
 
 libusb_device_handle *uh = NULL;
 uint8_t eeprom_buffer[] = {
@@ -176,15 +177,39 @@ START_TEST(test_eeprom_read)
 }
 END_TEST
 
+/**
+ * @test usb_eeprom_support()
+ */
+START_TEST(test_eeprom_support)
+{
+	struct data_eesupport *data = &eeprom_support_data[_i];
+	int ret;
+
+	ret = usb_eeprom_support((libusb_device *)data);
+	ck_assert_int_eq(ret, data->ret);
+}
+END_TEST
+
+/**
+ * @test usb_eeprom_support()
+ */
+START_TEST(test_eeprom_support_boundaries)
+{
+	ck_assert_int_eq(usb_eeprom_support(NULL), -EINVAL);
+}
+END_TEST
+
 int eeprom_suite(Suite *s_eeprom)
 {
 	TCase *tc_eeprom_erase;
 	TCase *tc_eeprom_write;
 	TCase *tc_eeprom_read;
+	TCase *tc_eeprom_support;
 
 	tc_eeprom_erase = tcase_create("EEPROM erase");
 	tc_eeprom_write = tcase_create("EEPROM write");
 	tc_eeprom_read = tcase_create("EEPROM read");
+	tc_eeprom_support = tcase_create("EEPROM support");
 
 	tcase_add_unchecked_fixture(tc_eeprom_erase, setup_device_handle,
 			teardown_device_handle);
@@ -203,9 +228,14 @@ int eeprom_suite(Suite *s_eeprom)
 	tcase_add_test(tc_eeprom_read, test_eeprom_read);
 	tcase_add_test(tc_eeprom_read, test_eeprom_read_boundaries);
 
+	tcase_add_loop_test(tc_eeprom_support, test_eeprom_support, 0,
+		sizeof(eeprom_support_data) / sizeof(struct data_eesupport));
+	tcase_add_test(tc_eeprom_support, test_eeprom_support_boundaries);
+
 	suite_add_tcase(s_eeprom, tc_eeprom_erase);
 	suite_add_tcase(s_eeprom, tc_eeprom_write);
 	suite_add_tcase(s_eeprom, tc_eeprom_read);
+	suite_add_tcase(s_eeprom, tc_eeprom_support);
 
 	return EXIT_SUCCESS;
 }
