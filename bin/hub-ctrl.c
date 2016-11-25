@@ -29,6 +29,7 @@
 
 #include <libusb.h>
 
+#include "config.h"
 #include "file_io.h"
 #include "options.h"
 #include "usb_eeprom.h"
@@ -310,6 +311,7 @@ int main(int argc, char **argv)
 		.verbose = 0,
 		.listing = 0,
 		.quiet = 0,
+		.version = 0
 	};
 	uint8_t *cmp_buffer = NULL;
 	uint8_t *buffer = NULL;
@@ -322,7 +324,10 @@ int main(int argc, char **argv)
 
 	ret_val = options_scan(&opts, argc, argv);
 	if (ret_val <= 0) {
-		options_help(argv[0]);
+		if (opts.version)
+			printf("%s\n", PACKAGE_STRING);
+		else
+			options_help(argv[0]);
 		exit(ret_val);
 	}
 

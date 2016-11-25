@@ -34,6 +34,7 @@ struct hub_options {
 	int verbose;
 	int listing;
 	int quiet;
+	char version;
 };
 
 void options_help(const char *progname);

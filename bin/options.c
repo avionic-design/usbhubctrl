@@ -67,6 +67,7 @@ void options_help(const char *progname)
 		"-q     <quiet>         no output at all\n"
 		"-r     <N>             Read N bytes from EEPROM\n"
 		"-v                     verbose\n"
+		"-V                     show program version and quit\n"
 		"-w     <N>             Write N bytes to EEPROM\n"
 		"-x                     Overwrite non-blank EEPROM devices\n",
 		progname, progname);
@@ -74,7 +75,7 @@ void options_help(const char *progname)
 
 int options_scan(struct hub_options *hargs, int argc, char **argv)
 {
-	const char short_options[] = "b:d:e:f:hi:lP:p:qr:vw:x";
+	const char short_options[] = "b:d:e:f:hi:lP:p:qr:Vvw:x";
 	int option;
 	int ret;
 
@@ -176,6 +177,10 @@ int options_scan(struct hub_options *hargs, int argc, char **argv)
 		case 'f':
 			hargs->filename = optarg;
 			break;
+
+		case 'V':
+			hargs->version = 1;
+			return 0;
 
 		default:
 			return -EINVAL;
