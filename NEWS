@@ -1,5 +1,29 @@
-Release x.y.z (YYYY-MM-DD)
+Release 0.4.0 (2016-11-28)
 ==========================
+2016-11-28 Bert van Hall <bert.vanhall@avionic-design.de>
+  * SW-Version 0.4.0
+  * usb_eeprom:
+    - fix verification failures by adding small delays
+    - switch to libusb-1.0 API
+    - add function to detect EEPROMs on supported hubs
+
+  * hub-ctrl:
+    - split out and rework command line options
+    - add device scanning mode
+    - add version printing option
+    - improve error messages
+    - lots of smaller code improvements and cleanups
+
+  * build:
+    - fix missing header and linker flags
+    - improve default silence
+    - add and distribute udev rule
+
+  * tests:
+    - use mockup to cover libusb-1.0 dependency
+    - add tests for usb_eeprom_write()
+    - add tests for usb_eeprom_support()
+    - add auto mode for BlueTooth test script
 
 Release 0.2.0 (2016-11-08)
 ==========================
