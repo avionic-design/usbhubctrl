@@ -19,7 +19,7 @@
 #define EEPROM_SIZE_LIMIT	4096
 
 static int conv_ul_arg(size_t *dest, const char *arg, size_t min, size_t max,
-	char name)
+	int base, char name)
 {
 	unsigned long num;
 
@@ -27,7 +27,7 @@ static int conv_ul_arg(size_t *dest, const char *arg, size_t min, size_t max,
 		return -EINVAL;
 
 	errno = 0;
-	num = strtoul(arg, NULL, 0);
+	num = strtoul(arg, NULL, base);
 	if (errno) {
 		if (name)
 			fprintf(stderr, "Invalid parameter for -%c: '%s'\n",
@@ -97,14 +97,14 @@ int options_scan(struct hub_options *hargs, int argc, char **argv)
 
 		case 'b':
 			ret = conv_ul_arg(&hargs->busnum, optarg, 1, USHRT_MAX,
-				option);
+				10, option);
 			if (ret)
 				return ret;
 			break;
 
 		case 'd':
 			ret = conv_ul_arg(&hargs->devnum, optarg, 1, USHRT_MAX,
-				option);
+				10, option);
 			if (ret)
 				return ret;
 			break;
@@ -115,7 +115,7 @@ int options_scan(struct hub_options *hargs, int argc, char **argv)
 				return -EINVAL;
 
 			ret = conv_ul_arg(&hargs->port, optarg, 1, USHRT_MAX,
-				option);
+				10, option);
 			if (ret)
 				return ret;
 
@@ -126,7 +126,8 @@ int options_scan(struct hub_options *hargs, int argc, char **argv)
 			if (hargs->cmd != COMMAND_SET_NONE)
 				return -EINVAL;
 
-			ret = conv_ul_arg(&hargs->power, optarg, 0, 3, option);
+			ret = conv_ul_arg(&hargs->power, optarg, 0, 3, 0,
+				option);
 			if (ret)
 				return ret;
 
@@ -138,7 +139,8 @@ int options_scan(struct hub_options *hargs, int argc, char **argv)
 					hargs->cmd != COMMAND_SET_POWER)
 				return -EINVAL;
 
-			ret = conv_ul_arg(&hargs->power, optarg, 0, 1, option);
+			ret = conv_ul_arg(&hargs->power, optarg, 0, 1, 0,
+				option);
 			if (ret)
 				return ret;
 
@@ -160,7 +162,7 @@ int options_scan(struct hub_options *hargs, int argc, char **argv)
 				return -EINVAL;
 
 			ret = conv_ul_arg(&hargs->eesize, optarg, 1,
-				EEPROM_SIZE_LIMIT, option);
+				EEPROM_SIZE_LIMIT, 0, option);
 			if (ret)
 				return ret;
 
