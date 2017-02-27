@@ -38,7 +38,7 @@ static int conv_ul_arg(size_t *dest, const char *arg, size_t min, size_t max,
 	if (num < min || num > max) {
 		if (name)
 			fprintf(stderr, "Parameter for -%c out of range "
-				"[%lu, %lu]\n", name, min, max);
+				"[%zu, %zu]\n", name, min, max);
 		return -ERANGE;
 	}
 
