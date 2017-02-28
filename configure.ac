@@ -31,9 +31,9 @@ AM_CONDITIONAL([BUILD_TEST], [test "x$have_check" = xyes])
 AC_ARG_WITH([udev-dir],
 	AS_HELP_STRING([--with-udev-dir=DIR],
 		[Directory where udev expects its rules files
-		[[default=/lib/udev/rules.d]]]),
+		[default=${libdir}/udev/rules.d]]),
 	[udevdir="$withval"],
-	[udevdir="/lib/udev/rules.d"])
+	[udevdir="${libdir}/udev/rules.d"])
 UDEV_RULES_DIR=${udevdir}
 AC_SUBST(UDEV_RULES_DIR)
 
