@@ -1,5 +1,6 @@
 hub-ctrl.c
 ==========
+[![Travis build][travis-badge]][travis]
 
 Control USB power on a port by port basis on some USB hubs.
 
@@ -75,3 +76,6 @@ Author: NIIBE Yutaka  <gniibe at fsij.org>
 
 This file can be distributed under the terms and conditions of the GNU General
 Public License version 2 (or later).
+
+  [travis]: https://travis-ci.org/avionic-design/usbhubctrl
+  [travis-badge]: https://travis-ci.org/avionic-design/usbhubctrl.svg?branch=master

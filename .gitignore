@@ -2,7 +2,7 @@
 *.l[oa]
 *~
 #*#
-.*
+*.*/
 *.log
 *.trs
 !.gitignore

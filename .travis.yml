@@ -1,0 +1,15 @@
+language: c
+
+dist: trusty
+
+compiler:
+  - clang
+  - gcc
+
+before_install:
+  - sudo apt-get -qq update
+  - >
+    sudo apt-get -qq install automake libtool libusb-1.0-0-dev python-setuptools
+    pep8
+
+script: ./autogen.sh && make distcheck
