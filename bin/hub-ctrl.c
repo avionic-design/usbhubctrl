@@ -161,6 +161,17 @@ static int usb_find_hubs(int print)
 				id_bus, id_node, libusb_strerror(ret));
 		}
 
+		if (desc.bDeviceClass != LIBUSB_CLASS_HUB &&
+				!usb_eeprom_support(hub)) {
+			if (print > 1) {
+				fprintf(stderr, "Device %03d:%03d (%04x:%04x): "
+						"Not a hub\n",
+						id_bus, id_node, desc.idVendor,
+						desc.idProduct);
+			}
+			continue;
+		}
+
 		ret = libusb_open(hub, &dev);
 		if (ret) {
 			if (print > 1) {
