@@ -1,5 +1,13 @@
-Release x.y.z (YYYY-MM-DD)
+Release 0.6.0 (2017-03-14)
 ==========================
+2017-03-14 Bert van Hall <bert.vanhall@avionic-design.de>
+  * SW-Version 0.6.0
+  * hub-ctrl:
+    - use hub queries only for actual hubs and avoid breaking touchy devices
+    - fix parsing for integer options
+
+  * build:
+    - add Travis CI config
 
 Release 0.4.0 (2016-11-28)
 ==========================
